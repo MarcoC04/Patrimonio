@@ -216,6 +216,15 @@ export type ImportBuild =
   | { ok: false; rowIssues: { key: number; issue: RowIssue }[] };
 
 /** Quando il testo della banca è un ISIN lo si salva come tale invece che come simbolo. */
+/**
+ * Quantità e prezzi letti dal file sono già esatti, con il punto decimale ("112.345"). Il campo di
+ * inserimento dell'utente invece rifiuta un punto con tre cifre dopo ("1.234" potrebbe essere
+ * milleduecentotrentaquattro): per non farli rifiutare si passano con la virgola, che non è ambigua.
+ */
+function technicalToInput(value: string): string {
+  return value.replace('.', ',');
+}
+
 const ISIN = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
 
 const ASSET_CLASS_MAP: Record<string, Asset['asset_class']> = {
@@ -341,8 +350,8 @@ export function buildImport(
           assetId: asset.id,
           type: row.trade.type,
           date: row.date,
-          quantityText: row.trade.quantity,
-          unitPriceText: row.trade.unitPrice,
+          quantityText: technicalToInput(row.trade.quantity),
+          unitPriceText: technicalToInput(row.trade.unitPrice),
           feesText: formatPlain(row.trade.feeMinor),
           accountId,
         },
