@@ -1,0 +1,25 @@
+node_modules
+dist
+*.local
+.env
+.env.*
+!.env.example
+
+# Credenziali e chiavi
+*.pem
+*.key
+credentials*.json
+client_secret*.json
+
+# Estratti conto: mai nel repository (solo fixture sintetici)
+*.pdf
+*.csv
+!fixtures/synthetic/**/*.csv
+!fixtures/synthetic/**/*.pdf
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
