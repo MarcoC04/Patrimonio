@@ -31,14 +31,27 @@ export const strings = {
     netWorth: {
       title: 'Patrimonio totale',
       empty: 'Aggiungi un conto per vedere il tuo patrimonio.',
+      liquidity: 'di cui liquidità',
+      note: 'Somma dei saldi di tutti i conti. La liquidità esclude i conti broker.',
     },
     categorySpend: {
       title: 'Spese del mese per categoria',
       empty: 'Nessun dato: non ci sono ancora spese in questo mese.',
+      previousMonth: 'Mese precedente',
+      nextMonth: 'Mese successivo',
+      total: 'Totale spese',
+      others: 'Altre categorie',
+      uncategorized: 'Da categorizzare',
+      chartLabel: (month: string, total: string) => `Spese di ${month}: totale ${total}`,
     },
     liquidity: {
       title: 'Andamento della liquidità',
       empty: 'Nessun dato: servono almeno un conto e qualche movimento.',
+      today: 'Oggi',
+      showData: 'Mostra i dati',
+      date: 'Data',
+      balance: 'Saldo',
+      chartLabel: (from: string, to: string) => `Liquidità da ${from} a ${to}`,
     },
     budgets: {
       title: 'Budget',

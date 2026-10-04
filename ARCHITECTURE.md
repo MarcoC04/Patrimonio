@@ -210,6 +210,14 @@ portfolio_snapshots     (cache ricalcolabile per TWR e grafico)
 
 - Export dell'intero dataset in CSV (uno per tabella, zip) o JSON, in un click.
 
+### 7.8 Dashboard (definizioni, Fase 1)
+
+- **Patrimonio** = somma dei saldi di tutti i conti alla data (saldo iniziale + movimenti fino a quel giorno; prima della data del saldo iniziale un conto vale 0). I giroconti tra conti non lo cambiano. Con gli investimenti (Fase 3) si aggiungerà il valore degli asset.
+- **Liquidità** = patrimonio dei soli conti non `brokerage`. Un giroconto verso un conto broker riduce la liquidità ma non il patrimonio.
+- **Andamento della liquidità**: saldo a fine mese degli ultimi 12 mesi; per il mese in corso, quello di oggi.
+- **Spese per categoria** (mese selezionabile): solo spese, **giroconti esclusi**, con le sottocategorie sommate nella categoria madre; senza categoria = "Da categorizzare". Primi 6 elementi + "Altre categorie". Ogni grafico ha gli stessi dati in testo (importo e percentuale): non ci si affida al solo colore.
+- Per ora tutto in EUR; con più valute si userà lo snapshot in EUR / il cambio (Fase 1, passo E).
+
 ## 8. Sicurezza
 
 - Nessun login Google nell'app. L'accesso è protetto da una **chiave segreta** (lunga, casuale, 32+ caratteri) conservata nelle Proprietà script (`SECRET`), mai nel codice.
