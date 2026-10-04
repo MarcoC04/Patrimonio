@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import {
   Bar,
   BarChart,
@@ -10,25 +10,28 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { useData } from '../../app/DataProvider';
 import type { Dataset } from '../../data/repository';
 import { todayIso } from '../../domain/dates';
 import {
   currentMonth,
   limitSpend,
-  liquidityMinor,
+  liquidityBase,
   liquiditySeries,
   monthBounds,
   monthEndDates,
-  netWorthMinor,
+  netWorthBase,
   percentOf,
   shiftMonth,
   spendByCategory,
+  type RateMap,
   type YearMonth,
 } from '../../domain/dashboard';
-import { formatMoney, sumMinor } from '../../domain/money';
+import { BASE_CURRENCY, formatMoney, sumMinor } from '../../domain/money';
 import { Card, EmptyState } from '../../ui/Card';
+import { userMessage } from '../../ui/errors';
 import { formatEuroWhole, formatMonthLabel, formatMonthShort } from '../../ui/format';
-import { secondaryButtonClass } from '../../ui/styles';
+import { alertClass, secondaryButtonClass } from '../../ui/styles';
 import { strings } from '../../ui/strings';
 import { DataGate } from '../DataGate';
 
@@ -50,9 +53,76 @@ function EmptyChartFrame({ message, children }: { message: string; children: Rea
   );
 }
 
-function NetWorthCard({ data, today }: { data: Dataset; today: string }) {
-  const netWorth = netWorthMinor(data.accounts, data.transactions, today);
-  const liquidity = liquidityMinor(data.accounts, data.transactions, today);
+/** Ultimi tassi di cambio per le valute dei conti (servono a rivalutare i saldi in EUR). */
+interface RatesState {
+  status: 'loading' | 'ready' | 'error';
+  rates: RateMap;
+  message: string | null;
+}
+
+function useLatestRates(accounts: Dataset['accounts']): RatesState {
+  const { latestRates } = useData();
+  const currencies = useMemo(
+    () => [...new Set(accounts.map((a) => a.currency))].filter((c) => c !== BASE_CURRENCY).sort(),
+    [accounts],
+  );
+  const [state, setState] = useState<RatesState>({
+    status: currencies.length === 0 ? 'ready' : 'loading',
+    rates: {},
+    message: null,
+  });
+
+  useEffect(() => {
+    if (currencies.length === 0) {
+      setState({ status: 'ready', rates: {}, message: null });
+      return;
+    }
+    let cancelled = false;
+    setState((previous) => ({ ...previous, status: 'loading' }));
+    latestRates(currencies).then(
+      (rates) => {
+        if (!cancelled) setState({ status: 'ready', rates, message: null });
+      },
+      (error: unknown) => {
+        if (!cancelled) setState({ status: 'error', rates: {}, message: userMessage(error) });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [currencies, latestRates]);
+
+  return state;
+}
+
+function RatesNotice({ rates, missing }: { rates: RatesState; missing: readonly string[] }) {
+  if (rates.status === 'loading') {
+    return (
+      <p role="status" className="mt-2 text-xs text-slate-600">
+        {strings.dashboard.netWorth.loadingRates}
+      </p>
+    );
+  }
+  if (rates.status === 'error') {
+    return (
+      <p role="alert" className={`${alertClass} mt-2`}>
+        {rates.message}
+      </p>
+    );
+  }
+  if (missing.length > 0) {
+    return (
+      <p role="alert" className={`${alertClass} mt-2`}>
+        {strings.dashboard.netWorth.missingRates(missing.join(', '))}
+      </p>
+    );
+  }
+  return null;
+}
+
+function NetWorthCard({ data, today, rates }: { data: Dataset; today: string; rates: RatesState }) {
+  const netWorth = netWorthBase(data.accounts, data.transactions, today, rates.rates);
+  const liquidity = liquidityBase(data.accounts, data.transactions, today, rates.rates);
 
   return (
     <Card title={strings.dashboard.netWorth.title}>
@@ -65,10 +135,12 @@ function NetWorthCard({ data, today }: { data: Dataset; today: string }) {
         </>
       ) : (
         <>
-          <p className="text-3xl font-bold">{formatMoney(netWorth)}</p>
+          <p className="text-3xl font-bold">{formatMoney(netWorth.totalMinor)}</p>
           <p className="mt-1 text-sm text-slate-700">
-            {strings.dashboard.netWorth.liquidity}: <strong>{formatMoney(liquidity)}</strong>
+            {strings.dashboard.netWorth.liquidity}:{' '}
+            <strong>{formatMoney(liquidity.totalMinor)}</strong>
           </p>
+          <RatesNotice rates={rates} missing={netWorth.missing} />
           <p className="mt-2 text-xs text-slate-600">{strings.dashboard.netWorth.note}</p>
         </>
       )}
@@ -183,11 +255,19 @@ function CategorySpendCard({ data }: { data: Dataset }) {
   );
 }
 
-function LiquidityCard({ data }: { data: Dataset }) {
-  const series = useMemo(() => {
-    const points = liquiditySeries(data.accounts, data.transactions, monthEndDates(new Date(), 12));
-    return points.map((p) => ({ ...p, label: formatMonthShort(p.date) }));
-  }, [data.accounts, data.transactions]);
+function LiquidityCard({ data, rates }: { data: Dataset; rates: RatesState }) {
+  const { series, missing } = useMemo(() => {
+    const result = liquiditySeries(
+      data.accounts,
+      data.transactions,
+      monthEndDates(new Date(), 12),
+      rates.rates,
+    );
+    return {
+      series: result.points.map((p) => ({ ...p, label: formatMonthShort(p.date) })),
+      missing: result.missing,
+    };
+  }, [data.accounts, data.transactions, rates.rates]);
 
   const hasLiquidAccounts = data.accounts.some((a) => a.type !== 'brokerage');
   const first = series[0];
@@ -208,6 +288,7 @@ function LiquidityCard({ data }: { data: Dataset }) {
           <p className="mb-2 text-sm text-slate-700">
             {strings.dashboard.liquidity.today}: <strong>{formatMoney(last.balanceMinor)}</strong>
           </p>
+          <RatesNotice rates={rates} missing={missing} />
           <div
             role="img"
             aria-label={strings.dashboard.liquidity.chartLabel(
@@ -276,12 +357,13 @@ function BudgetsCard() {
 
 function DashboardView({ data }: { data: Dataset }) {
   const today = todayIso();
+  const rates = useLatestRates(data.accounts);
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <NetWorthCard data={data} today={today} />
+      <NetWorthCard data={data} today={today} rates={rates} />
       <BudgetsCard />
       <CategorySpendCard data={data} />
-      <LiquidityCard data={data} />
+      <LiquidityCard data={data} rates={rates} />
     </div>
   );
 }

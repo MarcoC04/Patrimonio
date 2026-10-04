@@ -97,10 +97,47 @@ export interface Reply {
   error?: string;
 }
 
-export function createScript(options: { secret?: string | null; lockAvailable?: boolean } = {}) {
+export type FxReply = { code: number; body: string } | Error;
+
+const DEFAULT_RATES: Record<string, number> = { USD: 1.1476, JPY: 182.85, GBP: 0.8561 };
+
+/**
+ * Finto servizio Frankfurter: stesso formato di risposta del vero (verificato). Per un sabato o una
+ * domenica restituisce il venerdì precedente; per "latest" una data fissa. Valuta ignota → 404.
+ */
+export function defaultFx(url: string): FxReply {
+  const parsed = new URL(url);
+  const requested = parsed.pathname.split('/').pop() ?? '';
+  const symbols = (parsed.searchParams.get('symbols') ?? '').split(',');
+  if (symbols.some((symbol) => !(symbol in DEFAULT_RATES))) {
+    return { code: 404, body: '{"message":"not found"}' };
+  }
+  let date = '2026-10-02';
+  if (requested !== 'latest') {
+    const day = new Date(`${requested}T00:00:00Z`);
+    const back = day.getUTCDay() === 0 ? 2 : day.getUTCDay() === 6 ? 1 : 0;
+    date = new Date(day.getTime() - back * 86_400_000).toISOString().slice(0, 10);
+  }
+  const rates = Object.fromEntries(symbols.map((symbol) => [symbol, DEFAULT_RATES[symbol]]));
+  return { code: 200, body: JSON.stringify({ amount: 1, base: 'EUR', date, rates }) };
+}
+
+export function createScript(
+  options: { secret?: string | null; lockAvailable?: boolean; fx?: (url: string) => FxReply } = {},
+) {
   const spreadsheet = new FakeSpreadsheet();
   const secret = options.secret === undefined ? TEST_SECRET : options.secret;
+  /** Indirizzi richiesti al servizio cambi: per verificare cosa lo script manda fuori. */
+  const fetchedUrls: string[] = [];
   const sandbox = {
+    UrlFetchApp: {
+      fetch: (url: string) => {
+        fetchedUrls.push(url);
+        const reply = (options.fx ?? defaultFx)(url);
+        if (reply instanceof Error) throw reply;
+        return { getResponseCode: () => reply.code, getContentText: () => reply.body };
+      },
+    },
     SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet, flush: () => {} },
     PropertiesService: { getScriptProperties: () => ({ getProperty: () => secret }) },
     LockService: {
@@ -135,5 +172,5 @@ export function createScript(options: { secret?: string | null; lockAvailable?: 
   const fetchFn: typeof fetch = async (_input, init) =>
     new Response(post(String(init?.body)), { status: 200 });
 
-  return { spreadsheet, call, fetchFn };
+  return { spreadsheet, call, fetchFn, fetchedUrls };
 }

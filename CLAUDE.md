@@ -101,7 +101,7 @@ Su Windows: gli script npm devono funzionare senza bash. Non usare comandi solo-
 
 ## Cosa NON fare
 
-- Non introdurre un backend, un database o servizi di terzi oltre a Google Sheets e all'Apps Script legato al foglio.
+- Non introdurre un backend, un database o servizi di terzi oltre a Google Sheets e all'Apps Script legato al foglio. **Unica eccezione**: il servizio dei cambi Frankfurter, chiesto solo dallo script (azione `fx`), mai dal browser, e solo con data e codici di valuta: mai importi o altri dati (`ARCHITECTURE.md` §5).
 - Non aggiungere cifratura lato client: è stata scartata per scelta del proprietario.
 - Non salvare i file importati.
 - Non usare float per denaro.

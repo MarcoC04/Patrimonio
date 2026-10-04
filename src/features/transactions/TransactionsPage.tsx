@@ -157,11 +157,18 @@ function TransactionsView({ data }: { data: Dataset }) {
                         {detail}
                       </p>
                     </div>
-                    <p
-                      className={`shrink-0 font-semibold ${tx.amount_minor < 0 ? 'text-red-700' : 'text-green-800'}`}
-                    >
-                      {signedMoney(tx.amount_minor)}
-                    </p>
+                    <div className="shrink-0 text-right">
+                      <p
+                        className={`font-semibold ${tx.amount_minor < 0 ? 'text-red-700' : 'text-green-800'}`}
+                      >
+                        {signedMoney(tx.amount_minor, tx.currency)}
+                      </p>
+                      {tx.currency !== 'EUR' && (
+                        <p className="text-xs text-slate-600">
+                          {strings.transactions.inEuro(signedMoney(tx.amount_base_minor))}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {!isTransfer && (

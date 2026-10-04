@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MIN_SCRIPT_VERSION, ScriptClient } from './scriptClient';
+import { FX_MIN_SCRIPT_VERSION, MIN_SCRIPT_VERSION, ScriptClient } from './scriptClient';
 import { createScript, TEST_SECRET } from './testing/fakeAppsScript';
 
 const URL = 'https://script.google.com/macros/s/TEST/exec';
@@ -14,9 +14,17 @@ const replying =
     new Response(JSON.stringify({ ok: true, data }));
 
 describe('versione dello script', () => {
-  it('lo script reale dichiara la versione minima richiesta dall’app', async () => {
+  it('lo script reale dichiara almeno la versione minima richiesta dall’app', async () => {
     const script = createScript();
-    await expect(clientWith(script.fetchFn).ping()).resolves.toBe(MIN_SCRIPT_VERSION);
+    const version = await clientWith(script.fetchFn).ping();
+    expect(version).toBeGreaterThanOrEqual(MIN_SCRIPT_VERSION);
+  });
+
+  it('lo script reale dichiara la versione che include i cambi', async () => {
+    const script = createScript();
+    await expect(clientWith(script.fetchFn).ping()).resolves.toBeGreaterThanOrEqual(
+      FX_MIN_SCRIPT_VERSION,
+    );
   });
 
   it('una risposta senza versione (script vecchio) vale 0, quindi inferiore al minimo', async () => {
@@ -30,6 +38,6 @@ describe('versione dello script', () => {
   });
 
   it('la versione dichiarata da un nuovo script supera il minimo', async () => {
-    await expect(clientWith(replying({ version: 3 })).ping()).resolves.toBe(3);
+    await expect(clientWith(replying({ version: 5 })).ping()).resolves.toBe(5);
   });
 });

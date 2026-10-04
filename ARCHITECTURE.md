@@ -90,7 +90,14 @@ Nota: SQLite non è usato. Per il volume previsto (migliaia di righe) bastano ar
 - Quantità e prezzi degli asset: **stringhe decimali** (es. `"0.12345678"`), gestite con libreria decimale.
 - Date: testo ISO `YYYY-MM-DD`. Timestamp: ISO 8601 UTC.
 - Lo script scrive le celle **come testo semplice** (formato `@` impostato prima di `setValues`): equivale a `RAW`, evita conversioni automatiche di numeri/date e l'interpretazione di formule. Niente formule nelle schede dati.
-- Valuta base: EUR. Cambi da API Frankfurter (dati BCE), con cache nella scheda `fx_rates` e fallback sull'ultimo tasso noto se offline.
+- Valuta base: EUR. Cambi dal servizio Frankfurter (dati BCE), con cache nella scheda `fx_rates`.
+  - **Il browser non contatta mai Frankfurter**: le richieste passano dall'azione `fx` dello script (versione 3), che usa `UrlFetchApp`. La CSP resta chiusa su `script.google.com`. Verso il servizio esterno vanno solo data e codici di valuta, **mai importi** né altri dati. Lo script richiede l'autorizzazione "connettersi a un servizio esterno" (la chiede Google al primo uso dopo l'aggiornamento).
+  - Convenzione: il tasso è "1 EUR = tasso unità della valuta" (come la BCE). Conversione con interi grandi (`BigInt`), arrotondamento al centesimo con il mezzo verso l'esterno, simmetrico per i negativi. Quantità e importi non passano mai da float.
+  - Cache per (data richiesta, valuta). Per weekend e festivi il servizio restituisce l'ultimo giorno precedente: la riga porta la data richiesta e, in `source`, la data effettiva (`frankfurter:2026-03-13`). Una data futura usa il tasso di oggi.
+  - Ogni movimento salva `fx_rate` e `amount_base_minor` calcolati al tasso del giorno: i report storici non cambiano retroattivamente. Le modifiche che non cambiano conto né data tengono il tasso già salvato.
+  - Il patrimonio e la liquidità attuali rivalutano i conti in valuta estera **all'ultimo tasso** (cache del giorno). Se un tasso manca, il conto è escluso dal totale e l'app lo segnala: non si inventano valori.
+  - La valuta di un conto si sceglie alla creazione e non cambia. I giroconti sono possibili solo tra conti nella stessa valuta.
+  - Senza connessione o con il servizio non raggiungibile non si possono registrare movimenti in valuta estera (errore chiaro); quelli in EUR non sono toccati.
 
 ## 6. Modello dati (una scheda = una tabella)
 

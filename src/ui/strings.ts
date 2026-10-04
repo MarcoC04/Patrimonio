@@ -32,7 +32,10 @@ export const strings = {
       title: 'Patrimonio totale',
       empty: 'Aggiungi un conto per vedere il tuo patrimonio.',
       liquidity: 'di cui liquidità',
-      note: 'Somma dei saldi di tutti i conti. La liquidità esclude i conti broker.',
+      note: 'Somma dei saldi di tutti i conti, in euro (i conti in valuta estera al cambio più recente). La liquidità esclude i conti broker.',
+      loadingRates: 'Calcolo dei cambi in corso…',
+      missingRates: (currencies: string) =>
+        `Cambio non disponibile per: ${currencies}. Il totale non comprende questi conti.`,
     },
     categorySpend: {
       title: 'Spese del mese per categoria',
@@ -154,7 +157,9 @@ export const strings = {
     name: 'Nome',
     institution: 'Banca o istituto',
     type: 'Tipo',
-    openingBalance: 'Saldo iniziale (€)',
+    currency: 'Valuta',
+    currencyLocked: 'La valuta non si cambia dopo la creazione del conto.',
+    openingBalance: 'Saldo iniziale',
     openingBalanceHint: 'Esempio: 1.500,00. Puoi lasciarlo vuoto (0).',
     openingDate: 'Data del saldo iniziale',
     balance: 'Saldo',
@@ -171,6 +176,7 @@ export const strings = {
     issues: {
       name: 'Inserisci un nome.',
       name_taken: 'Esiste già un conto con questo nome.',
+      currency: 'Scegli una valuta tra quelle disponibili.',
       opening_balance: 'Saldo iniziale non valido (esempio: 1.500,00).',
       opening_date: 'Data non valida.',
     },
@@ -211,8 +217,11 @@ export const strings = {
     formEdit: 'Modifica movimento',
     kinds: { expense: 'Spesa', income: 'Entrata', transfer: 'Giroconto' },
     kind: 'Tipo di movimento',
-    amount: 'Importo (€)',
+    amount: 'Importo',
     amountHint: 'Scrivilo senza segno, ad esempio 12,34.',
+    fxHint:
+      'Conto in valuta estera: si usa il cambio del giorno del movimento, salvato insieme ad esso.',
+    inEuro: (amount: string) => `≈ ${amount}`,
     date: 'Data',
     account: 'Conto',
     fromAccount: 'Dal conto',
@@ -250,7 +259,9 @@ export const strings = {
       amount: 'Importo non valido: scrivi un numero maggiore di zero (esempio: 12,34).',
       date: 'Data non valida.',
       account: 'Scegli un conto.',
-      currency: 'Per ora sono supportati solo conti in euro.',
+      currency: 'La valuta di questo conto non è supportata.',
+      currency_mismatch: 'Il giroconto è possibile solo tra conti nella stessa valuta.',
+      fx_rate: 'Tasso di cambio non disponibile: riprova tra poco.',
       before_opening: 'La data è precedente al saldo iniziale del conto.',
       category: 'La categoria non è adatta a questo tipo di movimento.',
       transfer: 'I giroconti non si possono modificare.',
@@ -279,6 +290,8 @@ export const strings = {
       use_post: 'Richiesta non valida.',
       server: 'Errore dello script: riprova.',
       no_key: 'Inserisci prima la chiave segreta.',
+      fx_unavailable:
+        'Servizio dei cambi non raggiungibile. Riprova tra poco, oppure usa un conto in euro.',
       not_found: 'Elemento da modificare non trovato nel foglio: ricarica i dati.',
       duplicate_id: 'Elemento già presente nel foglio: ricarica i dati.',
     },
@@ -294,6 +307,8 @@ export const strings = {
         `Dati da salvare non validi (scheda "${table}", colonna ${columns}): nulla è stato scritto.`,
     },
     scriptOther: (code: string) => `Errore dello script (${code}).`,
+    fxOutdated:
+      'Per usare conti in valuta estera serve la versione 3 dello script: incolla l’ultimo Code.gs, autorizza l’accesso a servizi esterni e modifica la distribuzione con “Nuova versione”.',
     scriptOutdated: (found: number, required: number) =>
       `Lo script del foglio risponde con la versione ${found}, ma ne serve almeno la ${required}. ` +
       'Controlla che l’indirizzo dello script (VITE_SCRIPT_URL, anche nella variabile di GitHub) sia quello della distribuzione aggiornata. ' +

@@ -1,15 +1,18 @@
 import type { Account } from '../data/schema';
+import { isSupportedCurrency } from './currencies';
 import { isIsoDate } from './dates';
-import { BASE_CURRENCY, parseMoney } from './money';
+import { minorExponent, parseMoney } from './money';
 import { fail, type Result } from './result';
 import { uuidv7 } from './uuid7';
 
-export type AccountIssue = 'name' | 'name_taken' | 'opening_balance' | 'opening_date';
+export type AccountIssue = 'name' | 'name_taken' | 'currency' | 'opening_balance' | 'opening_date';
 
 export interface AccountInput {
   name: string;
   institution: string;
   type: Account['type'];
+  /** Codice a 3 lettere (EUR, USD, …). Si sceglie alla creazione e poi non cambia. */
+  currency: string;
   /** Saldo iniziale scritto dall'utente ("1.500,00", anche negativo); vuoto = 0. */
   openingBalanceText: string;
   openingDate: string;
@@ -19,7 +22,10 @@ function resolve(
   input: AccountInput,
   others: readonly Account[],
 ): Result<
-  Pick<Account, 'name' | 'institution' | 'type' | 'opening_balance_minor' | 'opening_date'>,
+  Pick<
+    Account,
+    'name' | 'institution' | 'type' | 'currency' | 'opening_balance_minor' | 'opening_date'
+  >,
   AccountIssue
 > {
   const issues: AccountIssue[] = [];
@@ -29,8 +35,12 @@ function resolve(
     issues.push('name_taken');
   }
 
+  if (!isSupportedCurrency(input.currency)) issues.push('currency');
+
+  // Il saldo si legge con i decimali della valuta del conto (JPY: nessuno).
+  const exponent = isSupportedCurrency(input.currency) ? minorExponent(input.currency) : 2;
   const balanceText = input.openingBalanceText.trim();
-  const balance = balanceText === '' ? 0 : parseMoney(balanceText);
+  const balance = balanceText === '' ? 0 : parseMoney(balanceText, exponent);
   if (balance === null) issues.push('opening_balance');
   if (!isIsoDate(input.openingDate)) issues.push('opening_date');
   if (issues.length > 0 || balance === null) return fail(issues);
@@ -41,6 +51,7 @@ function resolve(
       name,
       institution: input.institution.trim(),
       type: input.type,
+      currency: input.currency,
       opening_balance_minor: balance,
       opening_date: input.openingDate,
     },
@@ -64,14 +75,16 @@ export function createAccount(
       created_at: timestamp,
       updated_at: timestamp,
       deleted: false,
-      // Per ora solo EUR: il cambio valuta arriva con il servizio cambi.
-      currency: BASE_CURRENCY,
       is_archived: false,
       ...fields.value,
     },
   };
 }
 
+/**
+ * Modifica un conto. La valuta non cambia mai: i movimenti già registrati sono nella sua valuta
+ * e il loro snapshot in EUR è calcolato con i tassi di allora.
+ */
 export function updateAccount(
   account: Account,
   input: AccountInput,
@@ -79,7 +92,7 @@ export function updateAccount(
   now: Date = new Date(),
 ): Result<Account, AccountIssue> {
   const fields = resolve(
-    input,
+    { ...input, currency: account.currency },
     existing.filter((a) => a.id !== account.id),
   );
   if (!fields.ok) return fields;

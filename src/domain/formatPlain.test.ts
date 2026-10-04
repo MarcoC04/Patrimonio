@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { formatPlain, MoneyError, parseMoney } from './money';
+import { formatPlain, minorExponentOr, MoneyError, parseMoney } from './money';
+
+describe('minorExponentOr', () => {
+  it('decimali della valuta, con ripiego per i codici non validi', () => {
+    expect(minorExponentOr('EUR')).toBe(2);
+    expect(minorExponentOr('JPY')).toBe(0);
+    expect(minorExponentOr('XX1')).toBe(2); // codice rovinato: ripiego
+    expect(minorExponentOr('XX1', 0)).toBe(0);
+  });
+});
 
 describe('formatPlain', () => {
   it.each([

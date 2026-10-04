@@ -3,8 +3,8 @@ import { Link } from 'react-router';
 import { useData } from '../../app/DataProvider';
 import type { Dataset } from '../../data/repository';
 import type { Transaction } from '../../data/schema';
-import { todayIso } from '../../domain/dates';
-import { formatPlain } from '../../domain/money';
+import { isIsoDate, todayIso } from '../../domain/dates';
+import { BASE_CURRENCY, formatPlain, minorExponentOr } from '../../domain/money';
 import {
   createMovement,
   createTransfer,
@@ -30,7 +30,7 @@ interface Props {
 }
 
 export function MovementForm({ data, editing, onDone }: Props) {
-  const { save } = useData();
+  const { save, rateFor } = useData();
   const formRef = useRef<HTMLFormElement>(null);
 
   const accounts = data.accounts.filter((a) => !a.is_archived || a.id === editing?.account_id);
@@ -39,7 +39,7 @@ export function MovementForm({ data, editing, onDone }: Props) {
     editing ? (editing.amount_minor < 0 ? 'expense' : 'income') : 'expense',
   );
   const [amountText, setAmountText] = useState(
-    editing ? formatPlain(Math.abs(editing.amount_minor)) : '',
+    editing ? formatPlain(Math.abs(editing.amount_minor), minorExponentOr(editing.currency)) : '',
   );
   const [date, setDate] = useState(editing?.date ?? todayIso());
   const [accountId, setAccountId] = useState(editing?.account_id ?? accounts[0]?.id ?? '');
@@ -59,44 +59,61 @@ export function MovementForm({ data, editing, onDone }: Props) {
   const ctx = { accounts: data.accounts, categories: data.categories };
   const categoryOptions = kind === 'transfer' ? [] : sortedCategories(data.categories, kind);
 
-  const submit = async () => {
-    let toSave: Transaction[];
-    let isUpdate = false;
+  const selectedAccount = data.accounts.find((a) => a.id === accountId);
+  const currency = selectedAccount?.currency ?? BASE_CURRENCY;
 
-    if (kind === 'transfer') {
-      const result = createTransfer(
-        { fromAccountId: accountId, toAccountId, amountText, date, description },
-        ctx,
-      );
-      if (!result.ok) {
-        setIssues(result.issues);
-        setError(null);
-        return;
-      }
-      toSave = result.value;
-    } else {
-      const input: MovementInput = {
-        kind,
-        amountText,
-        date,
-        accountId,
-        categoryId: categoryId === '' ? null : categoryId,
-        description,
-        notes,
-      };
-      const result = editing ? updateMovement(editing, input, ctx) : createMovement(input, ctx);
-      if (!result.ok) {
-        setIssues(result.issues);
-        setError(null);
-        return;
-      }
-      toSave = [result.value];
-      isUpdate = editing !== null;
+  /** Tasso del giorno per un conto in valuta estera (dalla cache o dal servizio); undefined per l'EUR. */
+  const resolveRate = async (): Promise<string | undefined> => {
+    if (!selectedAccount || selectedAccount.currency === BASE_CURRENCY || !isIsoDate(date)) {
+      return undefined;
     }
+    // Modifica senza cambiare conto né data: si tiene il tasso già registrato col movimento.
+    if (editing && editing.account_id === accountId && editing.date === date) {
+      return editing.fx_rate;
+    }
+    return rateFor(date, selectedAccount.currency);
+  };
 
-    setIssues([]);
+  const submit = async () => {
     setBusy(true);
     try {
+      const fxRate = await resolveRate();
+      let toSave: Transaction[];
+      let isUpdate = false;
+
+      if (kind === 'transfer') {
+        const result = createTransfer(
+          { fromAccountId: accountId, toAccountId, amountText, date, description, fxRate },
+          ctx,
+        );
+        if (!result.ok) {
+          setIssues(result.issues);
+          setError(null);
+          return;
+        }
+        toSave = result.value;
+      } else {
+        const input: MovementInput = {
+          kind,
+          amountText,
+          date,
+          accountId,
+          categoryId: categoryId === '' ? null : categoryId,
+          description,
+          notes,
+          fxRate,
+        };
+        const result = editing ? updateMovement(editing, input, ctx) : createMovement(input, ctx);
+        if (!result.ok) {
+          setIssues(result.issues);
+          setError(null);
+          return;
+        }
+        toSave = [result.value];
+        isUpdate = editing !== null;
+      }
+
+      setIssues([]);
       await save({ transactions: isUpdate ? { update: toSave } : { insert: toSave } });
       onDone();
     } catch (e) {
@@ -174,9 +191,13 @@ export function MovementForm({ data, editing, onDone }: Props) {
       </fieldset>
 
       <Field
-        label={strings.transactions.amount}
+        label={`${strings.transactions.amount} (${currency})`}
         htmlFor="movement-amount"
-        hint={strings.transactions.amountHint}
+        hint={
+          currency === BASE_CURRENCY
+            ? strings.transactions.amountHint
+            : `${strings.transactions.amountHint} ${strings.transactions.fxHint}`
+        }
       >
         <input
           id="movement-amount"

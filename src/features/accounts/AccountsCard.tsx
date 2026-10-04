@@ -11,8 +11,9 @@ import {
 } from '../../domain/accounts';
 import { todayIso } from '../../domain/dates';
 import { accountUsage } from '../../domain/integrity';
+import { CURRENCIES } from '../../domain/currencies';
 import { accountBalanceMinor } from '../../domain/ledger';
-import { formatMoney, formatPlain } from '../../domain/money';
+import { formatMoney, formatPlain, minorExponentOr } from '../../domain/money';
 import { Card } from '../../ui/Card';
 import { userMessage } from '../../ui/errors';
 import { Field } from '../../ui/Field';
@@ -32,7 +33,10 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
   const [name, setName] = useState(account?.name ?? '');
   const [institution, setInstitution] = useState(account?.institution ?? '');
   const [type, setType] = useState<Account['type']>(account?.type ?? 'checking');
-  const [balance, setBalance] = useState(account ? formatPlain(account.opening_balance_minor) : '');
+  const [currency, setCurrency] = useState(account?.currency ?? 'EUR');
+  const [balance, setBalance] = useState(
+    account ? formatPlain(account.opening_balance_minor, minorExponentOr(account.currency)) : '',
+  );
   const [openingDate, setOpeningDate] = useState(account?.opening_date ?? todayIso());
   const [issues, setIssues] = useState<AccountIssue[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +47,7 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
       name,
       institution,
       type,
+      currency,
       openingBalanceText: balance,
       openingDate,
     };
@@ -116,7 +121,27 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
         </select>
       </Field>
       <Field
-        label={strings.accounts.openingBalance}
+        label={strings.accounts.currency}
+        htmlFor="account-currency"
+        hint={account ? strings.accounts.currencyLocked : undefined}
+      >
+        <select
+          id="account-currency"
+          value={currency}
+          // Dopo la creazione non si cambia: i movimenti già registrati sono in questa valuta.
+          disabled={account !== null}
+          onChange={(e) => setCurrency(e.target.value)}
+          className={inputClass}
+        >
+          {CURRENCIES.map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.code} — {c.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field
+        label={`${strings.accounts.openingBalance} (${currency})`}
         htmlFor="account-balance"
         hint={strings.accounts.openingBalanceHint}
       >
@@ -173,9 +198,9 @@ function AccountRow({
         </div>
         <p
           className="shrink-0 font-semibold"
-          aria-label={`${strings.accounts.balance}: ${formatMoney(balanceMinor)}`}
+          aria-label={`${strings.accounts.balance}: ${formatMoney(balanceMinor, account.currency)}`}
         >
-          {formatMoney(balanceMinor)}
+          {formatMoney(balanceMinor, account.currency)}
         </p>
       </div>
       <div className="flex flex-wrap gap-2">

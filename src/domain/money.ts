@@ -14,6 +14,16 @@ export function minorExponent(currency: string): number {
   return digits;
 }
 
+/** Come `minorExponent`, ma con un valore di ripiego per i codici non riconosciuti (dati rovinati). */
+export function minorExponentOr(currency: string, fallback = 2): number {
+  try {
+    return minorExponent(currency);
+  } catch {
+    // Codice valuta non valido: non deve rompere la schermata, si usa il ripiego.
+    return fallback;
+  }
+}
+
 export class MoneyError extends Error {
   constructor(message: string) {
     super(message);

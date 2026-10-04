@@ -43,6 +43,15 @@ export interface Repository {
    * logicamente), per l'esportazione. Una sola richiesta; non richiede una `load` e non scrive.
    */
   exportAll(): Promise<Record<string, string[][]>>;
+  /**
+   * Tassi di cambio EUR → `symbols` alla data (o `'latest'`) dal servizio Frankfurter, chiesti
+   * tramite lo script: l'app non contatta servizi esterni. `date` nel risultato è il giorno
+   * effettivo del tasso (per weekend e festivi, l'ultimo giorno precedente).
+   */
+  fetchRates(
+    date: string,
+    symbols: readonly string[],
+  ): Promise<{ date: string; rates: Record<string, string> }>;
 }
 
 /** Cancellazione logica: la riga resta nel foglio con `deleted` = true (va poi passata a `update`). */

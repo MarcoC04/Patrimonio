@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { applyChanges } from '../data/dataset';
+import { createFxService, type FxService } from '../data/fxService';
 import type { ChangeSet, Dataset } from '../data/repository';
 import { loadKey } from '../data/secretStore';
 import { userMessage } from '../ui/errors';
@@ -23,7 +24,7 @@ export type DataState =
   | { status: 'error'; message: string }
   | { status: 'ready'; data: Dataset };
 
-export interface DataApi {
+export interface DataApi extends FxService {
   state: DataState;
   /** Rilegge tutto dal foglio. Chiamate ravvicinate condividono la stessa lettura. */
   reload(): Promise<void>;
@@ -40,25 +41,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DataState>({ status: 'loading' });
   // Una sola lettura alla volta: due avvii in parallelo creerebbero due volte le categorie predefinite.
   const inFlight = useRef<Promise<void> | null>(null);
+  // Copia dei dati pronti, sempre aggiornata: la usano il salvataggio e la cache dei cambi.
+  const dataRef = useRef<Dataset | null>(null);
+
+  const show = useCallback((next: DataState) => {
+    dataRef.current = next.status === 'ready' ? next.data : null;
+    setState(next);
+  }, []);
 
   const reload = useCallback((): Promise<void> => {
     if (inFlight.current) return inFlight.current;
 
     const run = async () => {
       if (!connection.ok) {
-        setState({ status: 'setup', message: connection.message });
+        show({ status: 'setup', message: connection.message });
         return;
       }
       if (!loadKey()) {
-        setState({ status: 'setup', message: strings.errors.noKey });
+        show({ status: 'setup', message: strings.errors.noKey });
         return;
       }
-      setState({ status: 'loading' });
+      show({ status: 'loading' });
       try {
         const data = await loadAll(connection.client, connection.repository);
-        setState({ status: 'ready', data });
+        show({ status: 'ready', data });
       } catch (error) {
-        setState({ status: 'error', message: userMessage(error) });
+        show({ status: 'error', message: userMessage(error) });
       }
     };
 
@@ -67,23 +75,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
     inFlight.current = promise;
     return promise;
-  }, []);
+  }, [show]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  const save = useCallback(async (changes: ChangeSet) => {
-    if (!connection.ok) throw new Error(connection.message);
-    await connection.repository.save(changes);
-    setState((previous) =>
-      previous.status === 'ready'
-        ? { status: 'ready', data: applyChanges(previous.data, changes) }
-        : previous,
-    );
-  }, []);
+  const save = useCallback(
+    async (changes: ChangeSet) => {
+      if (!connection.ok) throw new Error(connection.message);
+      await connection.repository.save(changes);
+      const current = dataRef.current;
+      if (current) show({ status: 'ready', data: applyChanges(current, changes) });
+    },
+    [show],
+  );
 
-  const api = useMemo<DataApi>(() => ({ state, reload, save }), [state, reload, save]);
+  const fx = useMemo(
+    () =>
+      createFxService({
+        fetchRates: (date, symbols) => {
+          if (!connection.ok) return Promise.reject(new Error(connection.message));
+          return connection.repository.fetchRates(date, symbols);
+        },
+        cache: () => dataRef.current?.fxRates ?? [],
+        save,
+      }),
+    [save],
+  );
+
+  const api = useMemo<DataApi>(
+    () => ({ state, reload, save, rateFor: fx.rateFor, latestRates: fx.latestRates }),
+    [state, reload, save, fx],
+  );
   return <DataContext.Provider value={api}>{children}</DataContext.Provider>;
 }
 

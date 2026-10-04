@@ -12,6 +12,11 @@
  *   { key, action: 'read',   tabs: [nomeScheda...] }
  *   { key, action: 'append', appends: [{ tab, headers, rows }] }
  *   { key, action: 'write',  appends: [{ tab, headers, rows }], updates: [{ tab, headers, rows }] }
+ *   { key, action: 'fx',     date: 'YYYY-MM-DD' | 'latest', symbols: ['USD', ...] }
+ *     Cambi dal servizio Frankfurter (dati BCE), chiesti dallo script e non dal browser: così l'app
+ *     non contatta servizi esterni. Verso il servizio vanno solo date e codici di valuta, mai importi.
+ *     Risposta: { date: data effettiva del tasso, rates: { USD: '1.1476' } } (1 EUR = tasso).
+ *     Richiede l'autorizzazione "connettersi a un servizio esterno" (la chiede Google al primo uso).
  * Risposta (sempre HTTP 200): { ok: true, data } oppure { ok: false, error: codice }.
  * Gli errori contengono solo un codice, mai dati del foglio.
  *
@@ -23,7 +28,10 @@
  */
 
 /** Versione del protocollo: l'app la controlla con `ping` e chiede di aggiornare lo script se è vecchio. */
-var SCRIPT_VERSION = 2;
+var SCRIPT_VERSION = 3;
+
+var FX_URL = 'https://api.frankfurter.dev/v1/';
+var FX_MAX_SYMBOLS = 20;
 
 var SECRET_PROPERTY = 'SECRET';
 var LOCK_WAIT_MS = 10000;
@@ -90,9 +98,64 @@ function handle_(request) {
           return write_(request.appends, request.updates);
         }),
       };
+    case 'fx':
+      // Nessun lock: non tocca il foglio.
+      return { ok: true, data: fx_(request.date, request.symbols) };
     default:
       fail_('bad_request');
   }
+}
+
+/**
+ * Tassi EUR → valute dal servizio Frankfurter. Per una data senza pubblicazione (weekend,
+ * festivi) il servizio restituisce l'ultimo giorno precedente: `date` nella risposta è quello
+ * effettivo. I tassi tornano come testo decimale esatto, mai come numero.
+ */
+function fx_(date, symbols) {
+  if (date !== 'latest' && !(typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date))) {
+    fail_('bad_request');
+  }
+  if (!Array.isArray(symbols) || symbols.length === 0 || symbols.length > FX_MAX_SYMBOLS) {
+    fail_('bad_request');
+  }
+  symbols.forEach(function (symbol) {
+    // Solo codici a 3 lettere maiuscole: niente altro finisce nell'indirizzo richiesto.
+    if (typeof symbol !== 'string' || !/^[A-Z]{3}$/.test(symbol)) fail_('bad_request');
+  });
+
+  var url = FX_URL + date + '?base=EUR&symbols=' + symbols.join(',');
+  var response;
+  try {
+    response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  } catch (err) {
+    fail_('fx_unavailable');
+  }
+  if (response.getResponseCode() !== 200) fail_('fx_unavailable');
+
+  var body;
+  try {
+    body = JSON.parse(response.getContentText());
+  } catch (err) {
+    fail_('fx_unavailable');
+  }
+  if (
+    !body ||
+    typeof body.date !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(body.date) ||
+    !body.rates
+  ) {
+    fail_('fx_unavailable');
+  }
+
+  var rates = {};
+  symbols.forEach(function (symbol) {
+    var value = body.rates[symbol];
+    var text = typeof value === 'number' ? String(value) : '';
+    // Un tasso valido è un decimale positivo scritto in modo semplice (niente notazione scientifica).
+    if (!/^\d+(\.\d+)?$/.test(text) || !/[1-9]/.test(text)) fail_('fx_unavailable');
+    rates[symbol] = text;
+  });
+  return { date: body.date, rates: rates };
 }
 
 function withLock_(work) {

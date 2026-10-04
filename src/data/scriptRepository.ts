@@ -27,6 +27,10 @@ export interface ScriptApi {
     appends?: readonly AppendRequest[];
     updates?: readonly AppendRequest[];
   }): Promise<void>;
+  fx(
+    date: string,
+    symbols: readonly string[],
+  ): Promise<{ date: string; rates: Record<string, string> }>;
 }
 
 const ALL_TABLES = [metaTable, accountsTable, categoriesTable, transactionsTable, fxRatesTable];
@@ -185,6 +189,13 @@ export class ScriptRepository implements Repository {
 
   exportAll(): Promise<Record<string, string[][]>> {
     return this.api.read(ALL_TABLES.map((t) => t.name));
+  }
+
+  fetchRates(
+    date: string,
+    symbols: readonly string[],
+  ): Promise<{ date: string; rates: Record<string, string> }> {
+    return this.api.fx(date, symbols);
   }
 
   async save(changes: ChangeSet): Promise<void> {

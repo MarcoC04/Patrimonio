@@ -41,6 +41,7 @@ const accountInput = (overrides: Partial<AccountInput> = {}): AccountInput => ({
   name: ' Conto principale ',
   institution: 'Banca finta',
   type: 'checking',
+  currency: 'EUR',
   openingBalanceText: '1.500,00',
   openingDate: '2026-01-01',
   ...overrides,
@@ -85,6 +86,49 @@ describe('createAccount', () => {
       ok: false,
       issues: ['name_taken'],
     });
+  });
+});
+
+describe('conti in valuta estera', () => {
+  it('crea un conto in USD', () => {
+    const result = createAccount(accountInput({ currency: 'USD' }), [], NOW, () => 'usd-1');
+    expect(result.ok && result.value).toMatchObject({
+      id: 'usd-1',
+      currency: 'USD',
+      opening_balance_minor: 150000,
+    });
+  });
+
+  it('rifiuta una valuta non supportata o scritta male', () => {
+    for (const currency of ['XXX', 'usd', '', 'EURO']) {
+      expect(createAccount(accountInput({ currency }), [], NOW)).toEqual({
+        ok: false,
+        issues: ['currency'],
+      });
+    }
+  });
+
+  it('il saldo iniziale si legge con i decimali della valuta: in yen "15000" sì, "150,5" no', () => {
+    const ok = createAccount(
+      accountInput({ currency: 'JPY', openingBalanceText: '15000' }),
+      [],
+      NOW,
+    );
+    expect(ok.ok && ok.value.opening_balance_minor).toBe(15000);
+    expect(
+      createAccount(accountInput({ currency: 'JPY', openingBalanceText: '150,5' }), [], NOW),
+    ).toEqual({ ok: false, issues: ['opening_balance'] });
+  });
+
+  it('la valuta di un conto esistente non si cambia con la modifica', () => {
+    const existing: Account = { ...acc('a', 'Conto dollari'), currency: 'USD' };
+    const result = updateAccount(
+      existing,
+      accountInput({ name: 'Conto dollari', currency: 'EUR' }),
+      [existing],
+      NOW,
+    );
+    expect(result.ok && result.value.currency).toBe('USD');
   });
 });
 

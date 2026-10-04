@@ -3,11 +3,11 @@ import {
   balanceAtMinor,
   currentMonth,
   limitSpend,
-  liquidityMinor,
+  liquidityBase,
   liquiditySeries,
   monthBounds,
   monthEndDates,
-  netWorthMinor,
+  netWorthBase,
   percentOf,
   shiftMonth,
   spendByCategory,
@@ -19,7 +19,8 @@ const account = (
   opening: number,
   type: 'checking' | 'savings' | 'cash' | 'brokerage' = 'checking',
   opening_date = '2026-01-01',
-) => ({ id, opening_balance_minor: opening, opening_date, type });
+  currency = 'EUR',
+) => ({ id, opening_balance_minor: opening, opening_date, type, currency });
 
 const tx = (account_id: string, date: string, amount: number) => ({
   account_id,
@@ -58,35 +59,89 @@ describe('patrimonio e liquidità', () => {
     account('B', 500000, 'brokerage'), // broker 5.000,00 €
   ];
 
+  const net = (txs: ReturnType<typeof tx>[] = []) =>
+    netWorthBase(accounts, txs, '2026-06-01').totalMinor;
+  const liquid = (txs: ReturnType<typeof tx>[] = []) =>
+    liquidityBase(accounts, txs, '2026-06-01').totalMinor;
+
   it('patrimonio = tutti i conti: 1.000 + 200 + 5.000 = 6.200 €', () => {
-    expect(netWorthMinor(accounts, [], '2026-06-01')).toBe(620000);
+    expect(net()).toBe(620000);
   });
 
   it('la liquidità esclude i conti broker: 1.000 + 200 = 1.200 €', () => {
-    expect(liquidityMinor(accounts, [], '2026-06-01')).toBe(120000);
+    expect(liquid()).toBe(120000);
   });
 
   it('una spesa riduce entrambi', () => {
     const txs = [tx('C', '2026-03-01', -2500)];
-    expect(netWorthMinor(accounts, txs, '2026-06-01')).toBe(617500);
-    expect(liquidityMinor(accounts, txs, '2026-06-01')).toBe(117500);
+    expect(net(txs)).toBe(617500);
+    expect(liquid(txs)).toBe(117500);
   });
 
   it('un giroconto tra conti liquidi non cambia nulla', () => {
     const txs = [tx('C', '2026-03-01', -10000), tx('S', '2026-03-01', 10000)];
-    expect(netWorthMinor(accounts, txs, '2026-06-01')).toBe(620000);
-    expect(liquidityMinor(accounts, txs, '2026-06-01')).toBe(120000);
+    expect(net(txs)).toBe(620000);
+    expect(liquid(txs)).toBe(120000);
   });
 
   it('un giroconto verso il broker lascia il patrimonio ma riduce la liquidità di 100,00 €', () => {
     const txs = [tx('C', '2026-03-01', -10000), tx('B', '2026-03-01', 10000)];
-    expect(netWorthMinor(accounts, txs, '2026-06-01')).toBe(620000);
-    expect(liquidityMinor(accounts, txs, '2026-06-01')).toBe(110000);
+    expect(net(txs)).toBe(620000);
+    expect(liquid(txs)).toBe(110000);
   });
 
   it('senza conti vale 0', () => {
-    expect(netWorthMinor([], [], '2026-06-01')).toBe(0);
-    expect(liquidityMinor([], [], '2026-06-01')).toBe(0);
+    expect(netWorthBase([], [], '2026-06-01')).toEqual({ totalMinor: 0, missing: [] });
+    expect(liquidityBase([], [], '2026-06-01')).toEqual({ totalMinor: 0, missing: [] });
+  });
+});
+
+describe('patrimonio con conti in valuta estera', () => {
+  // 1.000,00 € + 500,00 USD (a 1,25 → 400,00 €) + 30.000 JPY (a 150 → 200,00 €)
+  const accounts = [
+    account('E', 100000),
+    account('D', 50000, 'checking', '2026-01-01', 'USD'),
+    account('Y', 30000, 'savings', '2026-01-01', 'JPY'), // yen: nessun decimale
+  ];
+  const rates = { USD: '1.25', JPY: '150' };
+
+  it('converte i saldi al tasso: 1.000 + 400 + 200 = 1.600 € (160000 cent)', () => {
+    expect(netWorthBase(accounts, [], '2026-06-01', rates)).toEqual({
+      totalMinor: 160000,
+      missing: [],
+    });
+  });
+
+  it('i movimenti nella valuta del conto si convertono insieme al saldo: −100,00 USD → 400 − 80 = 320 €', () => {
+    const txs = [tx('D', '2026-03-01', -10000)];
+    expect(netWorthBase(accounts, txs, '2026-06-01', rates).totalMinor).toBe(
+      100000 + 32000 + 20000,
+    );
+  });
+
+  it('una valuta senza tasso non si inventa: è esclusa dal totale e segnalata', () => {
+    expect(netWorthBase(accounts, [], '2026-06-01', { USD: '1.25' })).toEqual({
+      totalMinor: 100000 + 40000, // senza i 200,00 € dello yen
+      missing: ['JPY'],
+    });
+    expect(netWorthBase(accounts, [], '2026-06-01', {})).toEqual({
+      totalMinor: 100000,
+      missing: ['JPY', 'USD'],
+    });
+  });
+
+  it('la liquidità converte allo stesso modo (esclude solo il broker)', () => {
+    const withBroker = [...accounts, account('B', 90000, 'brokerage', '2026-01-01', 'USD')];
+    expect(liquidityBase(withBroker, [], '2026-06-01', rates).totalMinor).toBe(160000);
+    expect(netWorthBase(withBroker, [], '2026-06-01', rates).totalMinor).toBe(160000 + 72000);
+  });
+
+  it('una valuta con codice rovinato nel foglio non è convertibile', () => {
+    const bad = [account('X', 5000, 'checking', '2026-01-01', 'XX1')];
+    expect(netWorthBase(bad, [], '2026-06-01', { XX1: '2' })).toEqual({
+      totalMinor: 0,
+      missing: ['XX1'],
+    });
   });
 });
 
@@ -94,10 +149,29 @@ describe('liquiditySeries', () => {
   it('un punto per data, con i saldi di quel giorno: 1.000 € poi 1.000 − 300 = 700 €', () => {
     const accounts = [account('C', 100000)];
     const txs = [tx('C', '2026-02-10', -30000)];
-    expect(liquiditySeries(accounts, txs, ['2026-01-31', '2026-02-28'])).toEqual([
-      { date: '2026-01-31', balanceMinor: 100000 },
-      { date: '2026-02-28', balanceMinor: 70000 },
+    expect(liquiditySeries(accounts, txs, ['2026-01-31', '2026-02-28'])).toEqual({
+      points: [
+        { date: '2026-01-31', balanceMinor: 100000 },
+        { date: '2026-02-28', balanceMinor: 70000 },
+      ],
+      missing: [],
+    });
+  });
+
+  it('con conti in valuta estera usa gli stessi tassi per tutti i punti e segnala le valute mancanti', () => {
+    const accounts = [account('C', 100000), account('D', 50000, 'checking', '2026-01-01', 'USD')];
+    const dates = ['2026-01-31', '2026-02-28'];
+    expect(liquiditySeries(accounts, [], dates, { USD: '1.25' }).points).toEqual([
+      { date: '2026-01-31', balanceMinor: 140000 }, // 1.000 + 400
+      { date: '2026-02-28', balanceMinor: 140000 },
     ]);
+    expect(liquiditySeries(accounts, [], dates, {})).toEqual({
+      points: [
+        { date: '2026-01-31', balanceMinor: 100000 },
+        { date: '2026-02-28', balanceMinor: 100000 },
+      ],
+      missing: ['USD'],
+    });
   });
 });
 

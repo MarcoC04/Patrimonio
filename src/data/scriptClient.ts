@@ -1,13 +1,16 @@
+import { z } from 'zod';
 import { strings } from '../ui/strings';
 import { HttpError, withBackoff } from './retry';
 
 /** Il corpo della richiesta contiene la chiave: si invia solo verso gli script Google. */
 const SCRIPT_URL_PREFIX = 'https://script.google.com/macros/s/';
 
-/** Errore restituito dallo script o risposta non interpretabile. Il messaggio è già per l'utente. */
 /** Versione minima dello script richiesta da questa app (azione `write`, chiavi uniche). */
 export const MIN_SCRIPT_VERSION = 2;
+/** Versione che aggiunge l'azione `fx` (cambi). Serve solo a chi usa conti in valuta estera. */
+export const FX_MIN_SCRIPT_VERSION = 3;
 
+/** Errore restituito dallo script o risposta non interpretabile. Il messaggio è già per l'utente. */
 export class ScriptError extends Error {
   readonly code: string;
 
@@ -35,6 +38,17 @@ export interface AppendRequest {
 }
 
 type ScriptResponse = { ok: true; data: unknown } | { ok: false; error: string };
+
+/** Tassi EUR → valute: `date` è il giorno effettivo della pubblicazione (può precedere quello chiesto). */
+export interface FxResult {
+  date: string;
+  rates: Record<string, string>;
+}
+
+const fxResultSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  rates: z.record(z.string().regex(/^[A-Z]{3}$/), z.string().regex(/^\d+(\.\d+)?$/)),
+});
 
 export function messageForScriptError(code: string): string {
   const messages: Record<string, string> = strings.errors.script;
@@ -129,5 +143,33 @@ export class ScriptClient {
     updates?: readonly AppendRequest[];
   }): Promise<void> {
     await this.call('write', { appends: request.appends ?? [], updates: request.updates ?? [] });
+  }
+
+  /**
+   * Tassi EUR → `symbols` alla data (o `'latest'`), chiesti dallo script al servizio cambi.
+   * Verso il servizio esterno vanno solo data e codici di valuta, mai importi.
+   */
+  async fx(date: string, symbols: readonly string[]): Promise<FxResult> {
+    // Si controlla prima di inviare: così un `bad_request` dello script vuol dire "script vecchio".
+    if (date !== 'latest' && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new ScriptError('bad_request', messageForScriptError('bad_request'));
+    }
+    if (symbols.length === 0 || symbols.some((s) => !/^[A-Z]{3}$/.test(s))) {
+      throw new ScriptError('bad_request', messageForScriptError('bad_request'));
+    }
+
+    let data: unknown;
+    try {
+      data = await this.call('fx', { date, symbols });
+    } catch (error) {
+      // Uno script precedente alla versione 3 non conosce l'azione e risponde bad_request.
+      if (error instanceof ScriptError && error.code === 'bad_request') {
+        throw new ScriptError('fx_outdated', strings.errors.fxOutdated);
+      }
+      throw error;
+    }
+    const parsed = fxResultSchema.safeParse(data);
+    if (!parsed.success) throw new ScriptError('bad_response', strings.errors.badResponse);
+    return parsed.data;
   }
 }

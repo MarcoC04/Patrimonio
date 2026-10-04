@@ -1,11 +1,14 @@
 import type { Account, Category, Transaction } from '../data/schema';
 import { todayIso } from './dates';
+import { toBaseMinor } from './fx';
 import { isTransfer } from './ledger';
-import { sumMinor } from './money';
+import { BASE_CURRENCY, minorExponent, sumMinor } from './money';
 
 /**
  * Numeri della dashboard. Funzioni pure sugli importi in centesimi.
- * Per ora solo conti in EUR: con più valute servirà convertire con il cambio (passo E).
+ * I saldi in valuta estera si rivalutano in EUR con i tassi passati (ARCHITECTURE.md §5: il
+ * patrimonio attuale usa il tasso più recente). Una valuta senza tasso non si inventa: si
+ * esclude dal totale e si segnala in `missing`.
  */
 
 /**
@@ -26,28 +29,87 @@ export function balanceAtMinor(
   ]);
 }
 
-type AccountForTotals = Pick<Account, 'id' | 'opening_balance_minor' | 'opening_date' | 'type'>;
+type AccountForTotals = Pick<
+  Account,
+  'id' | 'opening_balance_minor' | 'opening_date' | 'type' | 'currency'
+>;
 type TransactionForTotals = Pick<Transaction, 'account_id' | 'date' | 'amount_minor'>;
 
-/** Patrimonio = somma dei saldi di tutti i conti alla data. I giroconti tra conti non lo cambiano. */
-export function netWorthMinor(
-  accounts: readonly AccountForTotals[],
-  transactions: readonly TransactionForTotals[],
-  isoDate: string,
-): number {
-  return sumMinor(accounts.map((a) => balanceAtMinor(a, transactions, isoDate)));
+/** Tassi "1 EUR = tasso unità" per valuta. L'EUR vale sempre 1 e non serve indicarlo. */
+export type RateMap = Readonly<Record<string, string>>;
+
+export interface BaseTotal {
+  /** Totale in centesimi EUR, senza le valute prive di tasso. */
+  totalMinor: number;
+  /** Valute con saldo ma senza tasso: escluse dal totale, da segnalare all'utente. */
+  missing: string[];
 }
 
-/** Liquidità = patrimonio dei soli conti non broker (corrente, risparmio, contanti). */
-export function liquidityMinor(
+function exponentOrNull(currency: string): number | null {
+  try {
+    return minorExponent(currency);
+  } catch {
+    // Codice valuta non riconosciuto (dato rovinato nel foglio): non convertibile.
+    return null;
+  }
+}
+
+/** Saldo di un conto a una data, in EUR; null se manca il tasso della sua valuta. */
+function balanceBaseAt(
+  account: AccountForTotals,
+  transactions: readonly TransactionForTotals[],
+  isoDate: string,
+  rates: RateMap,
+): number | null {
+  const balance = balanceAtMinor(account, transactions, isoDate);
+  if (account.currency === BASE_CURRENCY) return balance;
+  const rate = rates[account.currency];
+  const exponent = exponentOrNull(account.currency);
+  if (rate === undefined || exponent === null) return null;
+  return toBaseMinor(balance, rate, exponent);
+}
+
+function totalBase(
   accounts: readonly AccountForTotals[],
   transactions: readonly TransactionForTotals[],
   isoDate: string,
-): number {
-  return netWorthMinor(
+  rates: RateMap,
+): BaseTotal {
+  const parts: number[] = [];
+  const missing = new Set<string>();
+  for (const account of accounts) {
+    const value = balanceBaseAt(account, transactions, isoDate, rates);
+    if (value === null) missing.add(account.currency);
+    else parts.push(value);
+  }
+  return { totalMinor: sumMinor(parts), missing: [...missing].sort() };
+}
+
+/**
+ * Patrimonio = somma dei saldi di tutti i conti alla data, in EUR. I giroconti tra conti non lo
+ * cambiano. `rates`: i tassi da usare per le valute estere (di solito gli ultimi disponibili).
+ */
+export function netWorthBase(
+  accounts: readonly AccountForTotals[],
+  transactions: readonly TransactionForTotals[],
+  isoDate: string,
+  rates: RateMap = {},
+): BaseTotal {
+  return totalBase(accounts, transactions, isoDate, rates);
+}
+
+/** Liquidità = patrimonio dei soli conti non broker (corrente, risparmio, contanti), in EUR. */
+export function liquidityBase(
+  accounts: readonly AccountForTotals[],
+  transactions: readonly TransactionForTotals[],
+  isoDate: string,
+  rates: RateMap = {},
+): BaseTotal {
+  return totalBase(
     accounts.filter((a) => a.type !== 'brokerage'),
     transactions,
     isoDate,
+    rates,
   );
 }
 
@@ -56,15 +118,23 @@ export interface LiquidityPoint {
   balanceMinor: number;
 }
 
+/**
+ * Liquidità a più date, in EUR. Tutti i punti usano gli stessi tassi (quelli più recenti):
+ * la serie mostra come varia il saldo, non le oscillazioni del cambio.
+ */
 export function liquiditySeries(
   accounts: readonly AccountForTotals[],
   transactions: readonly TransactionForTotals[],
   dates: readonly string[],
-): LiquidityPoint[] {
-  return dates.map((date) => ({
-    date,
-    balanceMinor: liquidityMinor(accounts, transactions, date),
-  }));
+  rates: RateMap = {},
+): { points: LiquidityPoint[]; missing: string[] } {
+  const missing = new Set<string>();
+  const points = dates.map((date) => {
+    const total = liquidityBase(accounts, transactions, date, rates);
+    for (const currency of total.missing) missing.add(currency);
+    return { date, balanceMinor: total.totalMinor };
+  });
+  return { points, missing: [...missing].sort() };
 }
 
 /** Mese come "YYYY-MM". */

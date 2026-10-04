@@ -1,9 +1,12 @@
 import type { YearMonth } from '../domain/dashboard';
 import { formatMoney } from '../domain/money';
 
-/** Importo con segno esplicito: "+1.234,56 €" / "-12,34 €". Il segno è nel testo, non solo nel colore. */
-export function signedMoney(minor: number): string {
-  return minor > 0 ? `+${formatMoney(minor)}` : formatMoney(minor);
+/**
+ * Importo con segno esplicito: "+1.234,56 €" / "-12,34 €". Il segno è nel testo, non solo nel
+ * colore. `currency`: la valuta dell'importo (EUR se non indicata).
+ */
+export function signedMoney(minor: number, currency = 'EUR'): string {
+  return minor > 0 ? `+${formatMoney(minor, currency)}` : formatMoney(minor, currency);
 }
 
 // Nomi dei mesi scritti qui, non presi da Intl: stesso risultato su ogni browser e dispositivo.

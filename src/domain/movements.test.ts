@@ -37,7 +37,14 @@ const category = (id: string, kind: Category['kind']): Category => ({
 });
 
 const ctx: MovementContext = {
-  accounts: [account('A'), account('B'), account('USD', { currency: 'USD' })],
+  accounts: [
+    account('A'),
+    account('B'),
+    account('USD', { currency: 'USD' }),
+    account('USD2', { currency: 'USD' }),
+    account('YEN', { currency: 'JPY' }),
+    account('BAD', { currency: 'XX1' }), // codice rovinato nel foglio
+  ],
   categories: [
     category('cibo', 'expense'),
     category('stipendio', 'income'),
@@ -127,10 +134,103 @@ describe('createMovement', () => {
     });
   });
 
-  it('conto in valuta diversa da EUR rifiutato per ora', () => {
-    expect(createMovement(input({ accountId: 'USD' }), ctx, NOW)).toEqual({
-      ok: false,
-      issues: ['currency'],
+  describe('conti in valuta estera', () => {
+    it('spesa di 100,00 USD a 1,1476 → −10000 cent USD, snapshot −8714 cent EUR, tasso salvato', () => {
+      // 100 / 1,1476 = 87,1383… → 87,14 €
+      const result = createMovement(
+        input({ accountId: 'USD', amountText: '100,00', fxRate: '1.1476' }),
+        ctx,
+        NOW,
+        () => 'tx-usd',
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value).toMatchObject({
+        currency: 'USD',
+        amount_minor: -10000,
+        fx_rate: '1.1476',
+        amount_base_minor: -8714,
+      });
+    });
+
+    it('un’entrata in valuta estera ha snapshot positivo con lo stesso arrotondamento', () => {
+      const result = createMovement(
+        input({
+          kind: 'income',
+          categoryId: 'stipendio',
+          accountId: 'USD',
+          amountText: '100,00',
+          fxRate: '1.1476',
+        }),
+        ctx,
+        NOW,
+      );
+      expect(result.ok && result.value.amount_base_minor).toBe(8714);
+    });
+
+    it('senza tasso (o con un tasso non valido) non si registra', () => {
+      for (const fxRate of [undefined, '', '0', '-1', 'abc', '1,1476']) {
+        expect(createMovement(input({ accountId: 'USD', fxRate }), ctx, NOW)).toEqual({
+          ok: false,
+          issues: ['fx_rate'],
+        });
+      }
+    });
+
+    it('per un conto in euro il tasso è sempre 1 e un eventuale fxRate viene ignorato', () => {
+      const result = createMovement(input({ fxRate: '1.1476' }), ctx, NOW);
+      expect(result.ok && result.value).toMatchObject({ fx_rate: '1', amount_base_minor: -1234 });
+    });
+
+    it('lo yen non ha decimali: "15000" = 15000 JPY; "150,5" non è valido', () => {
+      // 15.000 JPY a 182,85 = 82,0344… → 82,03 €
+      const ok = createMovement(
+        input({ accountId: 'YEN', amountText: '15000', fxRate: '182.85' }),
+        ctx,
+        NOW,
+      );
+      expect(ok.ok && ok.value).toMatchObject({
+        currency: 'JPY',
+        amount_minor: -15000,
+        amount_base_minor: -8203,
+      });
+      expect(
+        createMovement(
+          input({ accountId: 'YEN', amountText: '150,5', fxRate: '182.85' }),
+          ctx,
+          NOW,
+        ),
+      ).toEqual({ ok: false, issues: ['amount'] });
+    });
+
+    it('una valuta rovinata nel foglio impedisce di registrare', () => {
+      expect(createMovement(input({ accountId: 'BAD', fxRate: '1.1' }), ctx, NOW)).toEqual({
+        ok: false,
+        issues: ['currency'],
+      });
+    });
+
+    it('la modifica ricalcola snapshot e tasso', () => {
+      const created = createMovement(
+        input({ accountId: 'USD', amountText: '100,00', fxRate: '1.1476' }),
+        ctx,
+        NOW,
+        () => 'tx-usd',
+      );
+      if (!created.ok) throw new Error('movimento di prova non valido');
+      const updated = updateMovement(
+        created.value,
+        input({ accountId: 'USD', amountText: '200,00', fxRate: '1.25' }),
+        ctx,
+        NOW,
+      );
+      // 200 / 1,25 = 160,00 €
+      expect(updated.ok && updated.value).toMatchObject({
+        amount_minor: -20000,
+        fx_rate: '1.25',
+        amount_base_minor: -16000,
+        id: 'tx-usd',
+      });
     });
   });
 
@@ -262,5 +362,42 @@ describe('createTransfer', () => {
     const noTransferCategory = { ...ctx, categories: [category('cibo', 'expense')] };
     const result = createTransfer(transferInput, noTransferCategory, NOW);
     expect(result.ok && result.value[0].category_id).toBeNull();
+  });
+
+  it('tra conti in valute diverse non è previsto (servirebbero due importi)', () => {
+    expect(
+      createTransfer({ ...transferInput, toAccountId: 'USD', fxRate: '1.1476' }, ctx, NOW),
+    ).toEqual({
+      ok: false,
+      issues: ['currency_mismatch'],
+    });
+  });
+
+  it('tra due conti nella stessa valuta estera: lati opposti, basi in EUR che si annullano', () => {
+    // 100,00 USD a 1,1476 = 87,14 € per lato (uno in uscita, uno in entrata)
+    const result = createTransfer(
+      {
+        ...transferInput,
+        fromAccountId: 'USD',
+        toAccountId: 'USD2',
+        amountText: '100,00',
+        fxRate: '1.1476',
+      },
+      ctx,
+      NOW,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const [out, into] = result.value;
+    expect(out).toMatchObject({ currency: 'USD', amount_minor: -10000, amount_base_minor: -8714 });
+    expect(into).toMatchObject({ currency: 'USD', amount_minor: 10000, amount_base_minor: 8714 });
+    expect(out.amount_base_minor + into.amount_base_minor).toBe(0);
+    expect(out.fx_rate).toBe('1.1476');
+  });
+
+  it('tra conti in valuta estera il tasso è obbligatorio', () => {
+    expect(
+      createTransfer({ ...transferInput, fromAccountId: 'USD', toAccountId: 'USD2' }, ctx, NOW),
+    ).toEqual({ ok: false, issues: ['fx_rate'] });
   });
 });
