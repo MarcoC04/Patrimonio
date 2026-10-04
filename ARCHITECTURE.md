@@ -186,6 +186,18 @@ portfolio_snapshots     (cache ricalcolabile per TWR e grafico)
 6. Il file originale viene scartato dalla memoria subito dopo l'estrazione. Si salva solo il record `import_batches` (nome, hash, conteggi).
 7. Se il parsing fallisce o il formato è sconosciuto: errore chiaro, nessuna scrittura parziale.
 
+#### Implementazione (decisioni del proprietario)
+
+- **Formati**: Revolut (CSV), Fineco (Excel `.xlsx`), Trade Republic (CSV). PDF non previsto. Lettori CSV e XLSX interni (nessuna dipendenza): `src/import/csv.ts`, `zipRead.ts`, `xlsx.ts`. Un file per parser in `src/import/parsers/`, interfaccia comune `StatementParser`.
+- **Flusso**: il pulsante "Importa estratto conto" (in Movimenti) chiede **prima il conto** e il formato (il formato scelto è ricordato per conto in `_meta`, chiave `import_format:<id conto>`, e resta modificabile), poi il file. Lettura nel Web Worker (`worker.ts`; senza worker, nel thread principale). Anteprima modificabile (includi, data, descrizione, importo con segno, categoria) → conferma → **un solo** `repo.save` atomico.
+- **Solo conti in EUR** per ora (i tassi storici andrebbero chiesti riga per riga).
+- **Righe da controllare**: non completate (in sospeso/annullate), valuta diversa dal conto, tipo non riconosciuto, acquisto/vendita poco chiari, importo zero. Sono **escluse di default** e segnalate; i duplicati sono segnalati ed esclusi.
+- **Duplicati**: `dedupe_hash` = SHA-256 di conto + data + importo + descrizione normalizzata (senza accenti, minuscola, solo lettere/cifre) + numero d'ordine fra righe identiche dello stesso file (due caffè uguali nello stesso giorno restano due movimenti). Con un identificativo della banca (Trade Republic: `transaction_id`) l'hash è `ext:<id>`. In più, lo stesso file (SHA-256) già importato sul conto è segnalato. `import_batches` contiene solo nome file, impronta, formato e numero di righe.
+- **Segno e importo netto**: Revolut netto = Importo − Costo, data = completamento; Fineco netto = Entrate − Uscite, descrizione = `Descrizione_Completa` se c'è; Trade Republic netto = `amount` + `fee` + `tax`.
+- **Trade Republic, acquisti e vendite**: per ogni riga TRADING si trova o crea l'asset (per ISIN/simbolo, poi per nome; `FUND`/`ETF`→etf, `STOCK`→equity, `CRYPTO`→crypto, `BOND`→bond, altro→other), si registra l'operazione di investimento (nello stesso salvataggio) e sul conto si registra il lato "contanti" come giroconto a un solo lato (categoria Trasferimento, proprio `transfer_group_id`, escluso dai totali): il deposito si riduce, il valore compare negli Investimenti. Le righe si applicano in ordine di data; una vendita oltre le quote possedute blocca l'import (nulla viene salvato).
+- **Regole**: vedi §7.2. Correggendo una categoria in anteprima si può ricordare la scelta (testo modificabile); le regole usate aumentano `hit_count`.
+- **Assunzioni da verificare al primo import reale**: (1) in Trade Republic `amount` è lordo di commissioni e tasse; (2) i valori di `type`/`category` di Trade Republic non sono tutti noti: la classificazione è per struttura (TRADING con quote e prezzo = operazione; categoria diversa da CASH/TRADING = "tipo non riconosciuto", esclusa di default); (3) nell'intestazione Fineco `Data_Opera…` può essere troncata (si riconosce per prefisso).
+
 ### 7.2 Auto-categorizzazione
 
 - Regole condizionali a priorità (contains/starts_with/equals/regex su descrizione, importo, conto).
@@ -240,7 +252,7 @@ Gestione manuale degli asset posseduti, con acquisti, vendite e prezzi inseriti 
 - **Valore** = quantità × prezzo, arrotondato al centesimo nella valuta dell'asset e poi convertito in EUR (ultimo tasso disponibile; senza tasso, escluso e segnalato).
 - **Operazioni**: `amount_base_minor` (sempre positivo) = acquisto: quantità × prezzo + commissioni; vendita: quantità × prezzo − commissioni, convertiti in EUR al **cambio del giorno** (salvato in `fx_rate`, come per i movimenti).
 - **Rendimento semplice** (ARCHITECTURE §7.6): ROI = (valore attuale + incassi dalle vendite − totale pagato) / totale pagato, tutto in EUR. Il TWR resta della Fase 3 completa.
-- **Liquidità**: gli acquisti e le vendite **non muovono il saldo dei conti** automaticamente. La liquidità del conto di investimento si tiene aggiornata a parte (saldo del conto). `account_id` delle operazioni è facoltativo e indica solo dove è detenuto l'asset.
+- **Liquidità**: gli acquisti e le vendite inseriti a mano **non muovono il saldo dei conti** automaticamente (quelli importati da Trade Republic sì, vedi §7.1). La liquidità del conto di investimento si tiene aggiornata a parte (saldo del conto). `account_id` delle operazioni è facoltativo e indica solo dove è detenuto l'asset.
 - **Asset in valuta estera**: l'acquisto richiede il cambio del giorno (dal servizio dei cambi, §5).
 - **Nuovo asset**: un solo modulo che crea asset, acquisto iniziale (quantità, prezzo pagato, data, commissioni) e, se indicato, il prezzo attuale, **in un'unica scrittura atomica**.
 - **Aggiornamento di un foglio esistente**: le tre schede nuove si creano da sole all'avvio, senza toccare i dati già presenti (nessuna migrazione: sono schede nuove).

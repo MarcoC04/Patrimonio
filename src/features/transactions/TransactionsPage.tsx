@@ -17,6 +17,7 @@ import { alertClass, buttonClass, dangerButtonClass, secondaryButtonClass } from
 import { strings } from '../../ui/strings';
 import { categoryPath } from '../categories/labels';
 import { DataGate } from '../DataGate';
+import { ImportFlow } from '../import/ImportFlow';
 import { MovementFilters } from './MovementFilters';
 import { MovementForm } from './MovementForm';
 
@@ -52,6 +53,8 @@ function TransactionsView({ data }: { data: Dataset }) {
   const [editing, setEditing] = useState<Transaction | 'new' | null>(null);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [notice, setNotice] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const accountNames = useMemo(
     () => new Map(data.accounts.map((a) => [a.id, a.name] as const)),
@@ -107,10 +110,30 @@ function TransactionsView({ data }: { data: Dataset }) {
 
   return (
     <>
-      {editing === null ? (
-        <button type="button" className={`${buttonClass} mb-4`} onClick={() => setEditing('new')}>
-          {strings.transactions.add}
-        </button>
+      {importing ? (
+        <ImportFlow
+          data={data}
+          onDone={(message) => {
+            setImporting(false);
+            if (message) setSuccess(message);
+          }}
+        />
+      ) : editing === null ? (
+        <div className="mb-4 flex flex-wrap gap-2">
+          <button type="button" className={buttonClass} onClick={() => setEditing('new')}>
+            {strings.transactions.add}
+          </button>
+          <button
+            type="button"
+            className={secondaryButtonClass}
+            onClick={() => {
+              setSuccess(null);
+              setImporting(true);
+            }}
+          >
+            {strings.importStatement.open}
+          </button>
+        </div>
       ) : (
         <MovementForm
           key={editing === 'new' ? 'new' : editing.id}
@@ -118,6 +141,15 @@ function TransactionsView({ data }: { data: Dataset }) {
           editing={editing === 'new' ? null : editing}
           onDone={() => setEditing(null)}
         />
+      )}
+
+      {success && (
+        <p
+          role="status"
+          className="mb-4 rounded-xl border border-income bg-surface-2 p-3 text-sm font-semibold text-income"
+        >
+          {success}
+        </p>
       )}
 
       {notice && (

@@ -423,6 +423,95 @@ export const strings = {
     },
   },
 
+  importStatement: {
+    open: 'Importa estratto conto',
+    title: 'Importa estratto conto',
+    step1: 'Per quale conto è l’estratto?',
+    account: 'Conto',
+    format: 'Formato del file',
+    formatHint: 'Il formato scelto viene ricordato per questo conto; puoi cambiarlo quando vuoi.',
+    chooseFormat: '— scegli il formato —',
+    formatName: (label: string, kind: 'csv' | 'xlsx') =>
+      `${label} (${kind === 'csv' ? 'CSV' : 'Excel'})`,
+    file: 'Estratto conto',
+    fileHint: (kind: 'csv' | 'xlsx') =>
+      `Scegli il file ${kind === 'csv' ? 'CSV' : 'Excel (.xlsx)'}. Viene letto sul tuo dispositivo e scartato: non viene salvato né caricato da nessuna parte.`,
+    needAccountAndFormat: 'Scegli prima il conto e il formato.',
+    noAccounts: 'Crea prima un conto in Impostazioni.',
+    reading: 'Lettura del file…',
+    previewTitle: 'Controlla i movimenti',
+    previewHint:
+      'Puoi cambiare data, descrizione, importo e categoria, oppure togliere la spunta alle righe da non importare.',
+    fileAlready:
+      'Questo file risulta già importato su questo conto: i movimenti sono già presenti.',
+    summary: (included: number, total: number) => `${included} di ${total} righe da importare`,
+    duplicates: (count: number) => (count === 1 ? '1 già importata' : `${count} già importate`),
+    toCheck: (count: number) => (count === 1 ? '1 da controllare' : `${count} da controllare`),
+    skipped: (count: number) =>
+      count === 1
+        ? '1 riga del file non è stata letta (data o importo non validi).'
+        : `${count} righe del file non sono state lette (data o importo non validi).`,
+    netTotal: 'Effetto sul conto',
+    include: 'Importa',
+    amount: 'Importo (con segno)',
+    amountHint: 'Negativo per le uscite.',
+    category: 'Categoria',
+    line: (line: number) => `Riga ${line} del file`,
+    investment: (type: 'buy' | 'sell', quantity: string) =>
+      `${type === 'buy' ? 'Acquisto' : 'Vendita'} · ${quantity} quote`,
+    investmentNote: 'Registrato negli Investimenti e come giroconto dal conto.',
+    learn: 'Ricorda per i prossimi estratti',
+    learnPattern: 'Se la descrizione contiene',
+    badges: {
+      duplicate: 'Già importato',
+      not_completed: 'Non completato',
+      other_currency: 'Valuta diversa',
+      unknown_type: 'Tipo non riconosciuto',
+      unclear_direction: 'Acquisto/vendita poco chiari',
+      zero_amount: 'Importo zero',
+    },
+    rowIssues: {
+      amount: 'Importo non valido.',
+      date: 'Data non valida.',
+      account: 'Conto non valido.',
+      currency: 'Valuta non supportata.',
+      currency_mismatch: 'Valuta diversa dal conto.',
+      fx_rate: 'Cambio non disponibile.',
+      before_opening: 'Data precedente al saldo iniziale del conto.',
+      category: 'Categoria non adatta a questo tipo di movimento.',
+      transfer: 'Giroconto non valido.',
+      same_account: 'Conti uguali.',
+      asset: 'Titolo non trovato.',
+      type: 'Tipo di operazione non valido.',
+      quantity: 'Quantità non valida.',
+      unit_price: 'Prezzo non valido.',
+      fees: 'Commissioni non valide.',
+      insufficient: 'Vendita di più quote di quelle possedute.',
+      name: 'Nome del titolo mancante.',
+      name_taken: 'Esiste già un titolo con questo nome.',
+      isin: 'ISIN non valido.',
+      asset_class: 'Tipo di asset non valido.',
+      transfer_category: 'Manca la categoria “Trasferimento”: creala in Impostazioni.',
+    },
+    fixRows: (count: number) =>
+      count === 1
+        ? 'C’è 1 riga da correggere (o togliere dall’importazione). Nulla è stato salvato.'
+        : `Ci sono ${count} righe da correggere (o togliere dall’importazione). Nulla è stato salvato.`,
+    nothingSelected: 'Nessuna riga selezionata da importare.',
+    confirm: (count: number) => `Importa ${count} ${count === 1 ? 'riga' : 'righe'}`,
+    done: (transactions: number, trades: number) =>
+      trades > 0
+        ? `Importati ${transactions} movimenti e ${trades} operazioni di investimento.`
+        : `Importati ${transactions} movimenti.`,
+    planIssues: {
+      account: 'Conto non trovato.',
+      currency:
+        'Per ora l’import funziona solo per conti in euro: questo conto è in un’altra valuta.',
+    },
+    back: 'Cambia conto o file',
+    close: 'Chiudi',
+  },
+
   errors: {
     missingScriptUrl: 'Indirizzo dello script mancante: imposta VITE_SCRIPT_URL in .env.local.',
     badScriptUrl:
@@ -472,6 +561,7 @@ export const strings = {
       missingColumns: (columns: string, format: string) =>
         `Nel file mancano le colonne: ${columns}. Hai scelto il formato giusto (${format}) per questo conto?`,
       noRows: 'Nel file non ci sono righe di movimenti da importare.',
+      generic: 'Non sono riuscito a leggere il file. Controlla che sia l’estratto conto giusto.',
     },
     scriptOther: (code: string) => `Errore dello script (${code}).`,
     fxOutdated:

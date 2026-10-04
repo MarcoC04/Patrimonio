@@ -14,8 +14,11 @@ client_secret*.json
 # Estratti conto: mai nel repository (solo fixture sintetici)
 *.pdf
 *.csv
+*.xlsx
+*.xls
 !fixtures/synthetic/**/*.csv
 !fixtures/synthetic/**/*.pdf
+!fixtures/synthetic/**/*.xlsx
 
 # Editor / OS
 .vscode/*
