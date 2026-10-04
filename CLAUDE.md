@@ -112,5 +112,6 @@ Su Windows: gli script npm devono funzionare senza bash. Non usare comandi solo-
 ## Stato corrente
 
 - **Fase attuale:** Fase 0 — prototipo di fattibilità (lettura/scrittura del Sheet tramite Apps Script su PC e iPhone). Il login Google è stato abbandonato per scelta del proprietario.
-- Dopo il prototipo: registrare l'esito in `ARCHITECTURE.md` §10 e §13 e attendere il via libera per la Fase 1.
+- Esito parziale della Fase 0 registrato in `ARCHITECTURE.md` §10: resta da confermare su iPhone la persistenza della chiave.
+- Ordine deciso dal proprietario: prima l'app completa (Fasi 1-3: fondamenta, pianificazione, investimenti), poi l'import degli estratti conto (Fase 4), infine la grafica (Fase 5). Non anticipare import e design.
 - Approvato in anticipo: la shell (nav bassa/sidebar) e la dashboard come schermata iniziale fanno parte della Fase 1, con stati vuoti e mai dati inventati.

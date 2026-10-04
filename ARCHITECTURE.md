@@ -238,35 +238,43 @@ Obiettivo: verificare che la PWA legga e scriva il Sheet tramite lo script Apps 
 - Test su **Windows (Chrome/Edge, localhost)** e **iPhone (PWA installata da Safari)**.
 - Verifiche: la PWA su iPhone raggiunge lo script (CORS, redirect su `script.googleusercontent.com`); la chiave salvata sopravvive a chiusura, riapertura dopo ore e ritorno dal background; scrittura atomica e rifiuto con struttura rotta.
 - Lo script va distribuito come app web con "Esegui come: me" e "Chi ha accesso: chiunque"; la prima autorizzazione è dello script, non dell'app.
-- **Esito:** documentare in questo file. Se fallisce, valutare le alternative PRIMA di proseguire.
+- **Esito (parziale, riportato dal proprietario):** la chiave viene accettata, lo script crea il foglio e la scheda di prova, la lettura funziona. **Ancora da confermare su iPhone:** persistenza della chiave dopo ore/chiusura dell'app e ritorno dal background. Non blocca la Fase 1; se il controllo fallisse si rivede la scelta (b) di §2.
 
 ### Fase 1 — Fondamenta e CRUD
 
 - Repository, tooling, CI minima, PWA
 - Layer dati: creazione automatica di Sheet/schede/intestazioni, richieste `read`/`append` raggruppate verso lo script, validazione Zod, retry su 429, interfaccia `Repository` astratta
-- Login Google, schermata di blocco con PIN, auto-lock
+- Schermata di blocco con PIN, auto-lock
 - Conti, categorie, CRUD spese/entrate, filtri avanzati (date + multi-categoria)
 - **Shell responsive mobile-first e dashboard come schermata iniziale** (anticipate dalla Fase 3 su richiesta del proprietario): navigazione in basso su mobile e sidebar su desktop; sezioni Dashboard, Movimenti, Budget, Investimenti, Impostazioni. La dashboard mostra fin dal primo giorno patrimonio totale, spese del mese per categoria, andamento della liquidità e budget. Dove non ci sono ancora dati: stati vuoti ("Nessun dato"), **mai dati inventati**. Gli strumenti di diagnostica della Fase 0 vanno in Impostazioni.
 - Apps Script di backup settimanale + export manuale CSV/JSON
 - Servizio cambi (Frankfurter) con cache
 
-### Fase 2 — Import e regole
+> **Ordine delle fasi (deciso dal proprietario):** prima l'app completa nei requisiti funzionali e non funzionali (Fasi 1-3), poi l'import degli estratti conto (Fase 4) e infine la grafica (Fase 5). Fino ad allora l'aspetto resta quello essenziale attuale: nessun lavoro di design visuale.
 
-- Framework a parser plugin; parser per 2 banche (CSV/PDF) e broker
-- Flusso anteprima → conferma; deduplicazione; rilevamento giroconti
-- Motore di categorizzazione + apprendimento
-
-### Fase 3 — Pianificazione e dashboard
+### Fase 2 — Pianificazione e budget
 
 - Ricorrenze e proiezione liquidità
-- Budget e obiettivi con barre
-- Completamento della dashboard (confronto mensile, proiezione liquidità, budget con barre), filtri globali. La shell e i widget base arrivano già in Fase 1.
+- Budget e obiettivi, con barre che mostrano anche percentuale/testo
+- Dashboard con dati veri e funzionali (confronto mensile, proiezione liquidità, budget), filtri globali condivisi tra le viste. Le shell e i widget base arrivano già in Fase 1.
 
-### Fase 4 — Investimenti e rifinitura
+### Fase 3 — Investimenti
 
 - CRUD asset e operazioni, storico prezzi, multi-valuta
 - ROI, TWR, asset allocation, patrimonio totale nel tempo
-- Test dei calcoli con casi noti, revisione sicurezza, performance su mobile, documentazione
+- Test dei calcoli con casi noti calcolati a mano
+
+### Fase 4 — Import estratti conto e regole
+
+- Framework a parser plugin; un parser per ogni banca/broker (CSV/PDF), nel Web Worker. Il file non viene mai salvato.
+- Spesa/entrata dal segno dell'importo, importo, data e descrizione estratti automaticamente
+- Flusso anteprima modificabile → conferma; deduplicazione; rilevamento giroconti
+- Motore di categorizzazione a regole + apprendimento
+
+### Fase 5 — Grafica e rifinitura
+
+- Design visuale e grafici rifiniti
+- Revisione sicurezza, performance su mobile, accessibilità, documentazione
 
 ## 11. Setup ambiente (Windows)
 
