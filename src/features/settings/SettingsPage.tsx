@@ -1,14 +1,22 @@
-import { Card } from '../../ui/Card';
 import { strings } from '../../ui/strings';
-import { DiagnosticsPanel } from './DiagnosticsPanel';
+import { AccountsCard } from '../accounts/AccountsCard';
+import { CategoriesCard } from '../categories/CategoriesCard';
+import { DataGate } from '../DataGate';
+import { ConnectionCard } from './ConnectionCard';
 
 export function SettingsPage() {
   return (
     <>
       <h1 className="mb-4 text-2xl font-bold">{strings.pages.settings.title}</h1>
-      <Card title={strings.pages.settings.diagnostics}>
-        <DiagnosticsPanel />
-      </Card>
+      <ConnectionCard />
+      <DataGate title={strings.accounts.title}>
+        {() => (
+          <>
+            <AccountsCard />
+            <CategoriesCard />
+          </>
+        )}
+      </DataGate>
     </>
   );
 }

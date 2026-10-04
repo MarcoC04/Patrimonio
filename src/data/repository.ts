@@ -27,6 +27,8 @@ export interface ChangeSet {
   categories?: TableChanges<Category>;
   transactions?: TableChanges<Transaction>;
   fxRates?: TableChanges<FxRate>;
+  /** Valori di `_meta` da impostare (inseriti se nuovi, aggiornati se già presenti). */
+  meta?: Record<string, string>;
 }
 
 export interface Repository {

@@ -5,6 +5,9 @@ import { HttpError, withBackoff } from './retry';
 const SCRIPT_URL_PREFIX = 'https://script.google.com/macros/s/';
 
 /** Errore restituito dallo script o risposta non interpretabile. Il messaggio è già per l'utente. */
+/** Versione minima dello script richiesta da questa app (azione `write`, chiavi uniche). */
+export const MIN_SCRIPT_VERSION = 2;
+
 export class ScriptError extends Error {
   readonly code: string;
 
@@ -92,9 +95,13 @@ export class ScriptClient {
     return json.data;
   }
 
-  /** Verifica indirizzo e chiave senza toccare il foglio. */
-  async ping(): Promise<void> {
-    await this.call('ping');
+  /**
+   * Verifica indirizzo e chiave senza toccare il foglio. Restituisce la versione dello script
+   * (0 se è una versione vecchia che non la dichiara).
+   */
+  async ping(): Promise<number> {
+    const data = (await this.call('ping')) as { version?: unknown } | null;
+    return typeof data?.version === 'number' ? data.version : 0;
   }
 
   /** Crea le schede mancanti con le intestazioni; non modifica quelle esistenti. Restituisce quante ne ha create. */

@@ -92,6 +92,8 @@ function collect<S extends AnyColumns>(
 export class ScriptRepository implements Repository {
   /** Vero solo dopo una `load` riuscita: finché i dati non sono validati non si scrive. */
   private validated = false;
+  /** Chiavi presenti in `_meta` all'ultima lettura: decidono tra inserimento e modifica. */
+  private metaKeys = new Set<string>();
 
   constructor(private readonly api: ScriptApi) {}
 
@@ -170,6 +172,7 @@ export class ScriptRepository implements Repository {
       throw new DataError(strings.errors.data.unsupportedVersion);
     }
 
+    this.metaKeys = new Set(meta.map((e) => e.key));
     this.validated = true;
     return {
       accounts: accounts.filter((e) => !e.deleted),
@@ -190,8 +193,16 @@ export class ScriptRepository implements Repository {
     collect(transactionsTable, changes.transactions, appends, updates);
     collect(fxRatesTable, changes.fxRates, appends, updates);
 
+    // _meta: i valori nuovi si aggiungono, quelli già presenti si riscrivono (la chiave è `key`).
+    const metaEntries = Object.entries(changes.meta ?? {}).map(([key, value]) => ({ key, value }));
+    const newMeta = metaEntries.filter((e) => !this.metaKeys.has(e.key));
+    const oldMeta = metaEntries.filter((e) => this.metaKeys.has(e.key));
+    if (newMeta.length > 0) appends.push(toRequest(metaTable, newMeta));
+    if (oldMeta.length > 0) updates.push(toRequest(metaTable, oldMeta));
+
     if (appends.length === 0 && updates.length === 0) return;
     // Una sola richiesta: lo script la esegue in modo atomico (tutto o niente).
     await this.api.write({ appends, updates });
+    for (const entry of newMeta) this.metaKeys.add(entry.key);
   }
 }

@@ -112,7 +112,7 @@ describe('ScriptClient: errori', () => {
 
   it('riprova su HTTP 429 e poi riesce', async () => {
     const { script, calls } = client([{ status: 429 }, { json: { ok: true, data: {} } }]);
-    await expect(script.ping()).resolves.toBeUndefined();
+    await expect(script.ping()).resolves.toBe(0); // versione vecchia: nessuna version nella risposta
     expect(calls).toHaveLength(2);
   });
 

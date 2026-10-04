@@ -1,7 +1,6 @@
 /** Tutte le stringhe della UI, in italiano, in un unico punto (pronte per eventuale i18n). */
 export const strings = {
   appTitle: 'Patrimonio',
-  phase0Subtitle: 'Prototipo di fattibilità (Fase 0)',
 
   nav: {
     label: 'Navigazione principale',
@@ -10,6 +9,21 @@ export const strings = {
     budgets: 'Budget',
     investments: 'Investimenti',
     settings: 'Impostazioni',
+  },
+
+  common: {
+    save: 'Salva',
+    saving: 'Salvataggio…',
+    cancel: 'Annulla',
+    edit: 'Modifica',
+    delete: 'Elimina',
+    archive: 'Archivia',
+    restore: 'Ripristina',
+    reload: 'Ricarica dati',
+    retry: 'Riprova',
+    loading: 'Caricamento dei dati…',
+    goToSettings: 'Vai alle Impostazioni',
+    noneOption: '— nessuna —',
   },
 
   dashboard: {
@@ -47,46 +61,133 @@ export const strings = {
     },
     settings: {
       title: 'Impostazioni',
-      diagnostics: 'Diagnostica collegamento (Fase 0)',
     },
   },
 
-  sections: {
-    connection: 'Collegamento al foglio',
-    sheet: 'Foglio di prova',
-    log: 'Registro',
-  },
-
-  actions: {
+  connection: {
+    title: 'Collegamento al foglio',
+    keyLabel: 'Chiave segreta',
+    keyPlaceholder: 'Incolla la chiave dello script',
     saveKey: 'Salva chiave',
     removeKey: 'Rimuovi chiave',
-    testConnection: 'Prova il collegamento',
-    initSheet: 'Prepara il foglio di prova',
-    addRow: 'Aggiungi riga',
-    readRows: 'Leggi righe',
-  },
-
-  labels: {
-    key: 'Chiave segreta',
-    keyPlaceholder: 'Incolla la chiave dello script',
     keySaved: 'Chiave salvata su questo dispositivo.',
     keyMissing: 'Nessuna chiave salvata.',
-    rowText: 'Testo della riga',
-    rowTextPlaceholder: 'Scrivi una nota di prova',
-    noRows: 'Nessuna riga.',
-    createdAt: 'Creata il',
+    test: 'Prova il collegamento',
+    testing: 'Prova in corso…',
+    testOk: (version: number) => `Collegamento riuscito (versione dello script: ${version}).`,
   },
 
-  log: {
-    ready: 'Pronto.',
-    keySaved: 'Chiave salvata.',
-    keyRemoved: 'Chiave rimossa.',
-    connectionOk: 'Collegamento riuscito.',
-    sheetReady: (created: number) =>
-      created > 0 ? 'Foglio di prova creato.' : 'Foglio di prova già pronto.',
-    rowAdded: 'Riga aggiunta.',
-    rowsRead: (count: number) => `Lette ${count} righe.`,
-    backInForeground: (keyState: string) => `App tornata in primo piano. ${keyState}`,
+  accounts: {
+    title: 'Conti',
+    empty: 'Nessun conto. Aggiungine uno per iniziare.',
+    add: 'Aggiungi conto',
+    formAdd: 'Nuovo conto',
+    formEdit: 'Modifica conto',
+    name: 'Nome',
+    institution: 'Banca o istituto',
+    type: 'Tipo',
+    openingBalance: 'Saldo iniziale (€)',
+    openingBalanceHint: 'Esempio: 1.500,00. Puoi lasciarlo vuoto (0).',
+    openingDate: 'Data del saldo iniziale',
+    balance: 'Saldo',
+    archivedTitle: 'Conti archiviati',
+    types: {
+      checking: 'Conto corrente',
+      savings: 'Risparmio',
+      cash: 'Contanti',
+      brokerage: 'Broker',
+    },
+    cannotDelete: (count: number) =>
+      `Il conto ha ${count} ${count === 1 ? 'movimento' : 'movimenti'}: non si può eliminare, ma puoi archiviarlo.`,
+    confirmDelete: (name: string) => `Eliminare il conto “${name}”?`,
+    issues: {
+      name: 'Inserisci un nome.',
+      name_taken: 'Esiste già un conto con questo nome.',
+      opening_balance: 'Saldo iniziale non valido (esempio: 1.500,00).',
+      opening_date: 'Data non valida.',
+    },
+  },
+
+  categories: {
+    title: 'Categorie',
+    add: 'Aggiungi categoria',
+    formAdd: 'Nuova categoria',
+    formEdit: 'Modifica categoria',
+    name: 'Nome',
+    kind: 'Tipo',
+    parent: 'Categoria madre',
+    kinds: { expense: 'Spese', income: 'Entrate', transfer: 'Giroconti' },
+    kindsSingular: { expense: 'Spesa', income: 'Entrata', transfer: 'Giroconto' },
+    cannotDelete: (transactions: number, children: number) => {
+      const reasons: string[] = [];
+      if (transactions > 0) {
+        reasons.push(`${transactions} ${transactions === 1 ? 'movimento' : 'movimenti'}`);
+      }
+      if (children > 0) {
+        reasons.push(`${children} ${children === 1 ? 'sottocategoria' : 'sottocategorie'}`);
+      }
+      return `La categoria ha ${reasons.join(' e ')}: non si può eliminare. Riassegnali prima.`;
+    },
+    confirmDelete: (name: string) => `Eliminare la categoria “${name}”?`,
+    issues: {
+      name: 'Inserisci un nome.',
+      name_taken: 'Esiste già una categoria con questo nome per questo tipo.',
+      parent: 'La categoria madre non è valida (deve essere di primo livello e dello stesso tipo).',
+    },
+  },
+
+  transactions: {
+    title: 'Movimenti',
+    add: 'Nuovo movimento',
+    formAdd: 'Nuovo movimento',
+    formEdit: 'Modifica movimento',
+    kinds: { expense: 'Spesa', income: 'Entrata', transfer: 'Giroconto' },
+    kind: 'Tipo di movimento',
+    amount: 'Importo (€)',
+    amountHint: 'Scrivilo senza segno, ad esempio 12,34.',
+    date: 'Data',
+    account: 'Conto',
+    fromAccount: 'Dal conto',
+    toAccount: 'Al conto',
+    category: 'Categoria',
+    toCategorize: 'Da categorizzare',
+    description: 'Descrizione',
+    notes: 'Note',
+    noAccounts: 'Crea prima un conto in Impostazioni.',
+    empty: 'Nessun movimento con questi filtri.',
+    transferLabel: (from: string, to: string) => `Giroconto: ${from} → ${to}`,
+    transferEditHint: 'I giroconti non si modificano: eliminalo e creane uno nuovo.',
+    confirmDelete: (description: string) =>
+      description ? `Eliminare il movimento “${description}”?` : 'Eliminare il movimento?',
+    confirmDeleteTransfer: 'Eliminare il giroconto? Verranno eliminati entrambi i lati.',
+    showMore: 'Mostra altri',
+    filters: {
+      title: 'Filtri',
+      from: 'Dal',
+      to: 'Al',
+      categories: 'Categorie',
+      allCategories: 'Tutte le categorie',
+      selectedCategories: (count: number) =>
+        count === 1 ? '1 categoria selezionata' : `${count} categorie selezionate`,
+      uncategorized: 'Senza categoria',
+      reset: 'Azzera filtri',
+    },
+    summary: {
+      income: 'Entrate',
+      expense: 'Spese',
+      net: 'Saldo',
+      note: 'I giroconti non sono conteggiati.',
+    },
+    issues: {
+      amount: 'Importo non valido: scrivi un numero maggiore di zero (esempio: 12,34).',
+      date: 'Data non valida.',
+      account: 'Scegli un conto.',
+      currency: 'Per ora sono supportati solo conti in euro.',
+      before_opening: 'La data è precedente al saldo iniziale del conto.',
+      category: 'La categoria non è adatta a questo tipo di movimento.',
+      transfer: 'I giroconti non si possono modificare.',
+      same_account: 'Scegli due conti diversi.',
+    },
   },
 
   errors: {
@@ -109,6 +210,9 @@ export const strings = {
       bad_request: 'Richiesta non valida.',
       use_post: 'Richiesta non valida.',
       server: 'Errore dello script: riprova.',
+      outdated:
+        'Lo script del foglio è una versione vecchia: incolla di nuovo Code.gs in Apps Script e pubblica una “Nuova versione” della distribuzione.',
+      no_key: 'Inserisci prima la chiave segreta.',
       not_found: 'Elemento da modificare non trovato nel foglio: ricarica i dati.',
       duplicate_id: 'Elemento già presente nel foglio: ricarica i dati.',
     },

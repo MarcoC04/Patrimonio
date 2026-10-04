@@ -22,6 +22,9 @@
  * lock. Se qualcosa non torna, non viene scritto nulla.
  */
 
+/** Versione del protocollo: l'app la controlla con `ping` e chiede di aggiornare lo script se è vecchio. */
+var SCRIPT_VERSION = 2;
+
 var SECRET_PROPERTY = 'SECRET';
 var LOCK_WAIT_MS = 10000;
 
@@ -57,7 +60,7 @@ function handle_(request) {
 
   switch (request.action) {
     case 'ping':
-      return { ok: true, data: {} };
+      return { ok: true, data: { version: SCRIPT_VERSION } };
     case 'read':
       // Anche la lettura sotto lock: non si vede mai una scrittura a metà.
       return {

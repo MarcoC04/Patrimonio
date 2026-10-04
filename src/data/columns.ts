@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isIsoDate } from '../domain/dates';
 
 /**
  * Una colonna del foglio: lo schema Zod legge la stringa della cella e la converte nel tipo
@@ -9,13 +10,6 @@ import { z } from 'zod';
 export interface ColumnDef<T> {
   readonly schema: z.ZodType<T, string>;
   format(value: T): string;
-}
-
-function isRealDate(text: string): boolean {
-  const [y, m, d] = text.split('-').map(Number);
-  if (y === undefined || m === undefined || d === undefined) return false;
-  const date = new Date(Date.UTC(y, m - 1, d));
-  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
 }
 
 const identity = (value: string) => value;
@@ -67,7 +61,7 @@ export const col = {
     schema: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .refine(isRealDate),
+      .refine(isIsoDate),
     format: identity,
   } satisfies ColumnDef<string>,
 
@@ -97,7 +91,11 @@ export const col = {
 
   /** Uno tra i valori ammessi. */
   oneOf<const V extends readonly [string, ...string[]]>(values: V) {
-    return { schema: z.enum(values), format: identity } satisfies ColumnDef<V[number]>;
+    // `format` tipizzato sul valore ammesso: altrimenti il tipo dell'entità si allargherebbe a string.
+    return {
+      schema: z.enum(values),
+      format: (value: V[number]) => value,
+    } satisfies ColumnDef<V[number]>;
   },
 };
 

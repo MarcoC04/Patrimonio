@@ -3,6 +3,9 @@
  * Le conversioni da/verso testo passano solo da qui.
  */
 
+/** Valuta base dell'app: i report e gli snapshot sono in EUR (ARCHITECTURE.md §5). */
+export const BASE_CURRENCY = 'EUR';
+
 /** Cifre decimali della valuta (EUR 2, JPY 0, ...), secondo Intl. */
 export function minorExponent(currency: string): number {
   const digits = new Intl.NumberFormat('it-IT', { style: 'currency', currency }).resolvedOptions()
@@ -78,6 +81,18 @@ export function parseMoney(input: string, exponent = 2): number | null {
   const minor = Number(whole + fraction.padEnd(exponent, '0'));
   if (!Number.isSafeInteger(minor)) return null;
   return sign * minor || 0; // evita -0
+}
+
+/**
+ * Importo come testo modificabile ("12,34"): virgola decimale, senza simbolo né migliaia.
+ * Serve a precompilare i campi in modifica; `parseMoney` lo rilegge identico.
+ */
+export function formatPlain(minor: number, exponent = 2): string {
+  assertMinor(minor);
+  const digits = String(Math.abs(minor)).padStart(exponent + 1, '0');
+  const whole = digits.slice(0, digits.length - exponent);
+  const fraction = digits.slice(digits.length - exponent);
+  return `${minor < 0 ? '-' : ''}${whole}${exponent > 0 ? `,${fraction}` : ''}`;
 }
 
 /**
