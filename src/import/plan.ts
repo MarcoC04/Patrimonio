@@ -8,6 +8,7 @@ import { BASE_CURRENCY, formatPlain } from '../domain/money';
 import { findRule, learnRule, registerHit } from '../domain/rules';
 import { uuidv7 } from '../domain/uuid7';
 import type { ImportedRow, ParserId, RowWarning } from './types';
+import { anchoredKey, serializeUndo, undoKey } from './undo';
 
 /**
  * Dall'estratto letto al salvataggio (ARCHITECTURE.md §7.1): `buildPlan` prepara l'anteprima
@@ -154,8 +155,6 @@ export async function buildPlan(
     },
   };
 }
-
-const anchoredKey = (accountId: string) => `balance_anchored:${accountId}`;
 
 /** Come cambia il conto importando le righe scelte (retrodatazione e saldo a fine estratto). */
 export function previewBalance(input: {
@@ -384,6 +383,7 @@ export function buildImport(
   }
 
   const timestamp = now.toISOString();
+  const previous = dataset.accounts.find((a) => a.id === accountId);
   const changes: ChangeSet = {
     transactions: { insert: transactions },
     importBatches: {
@@ -406,6 +406,18 @@ export function buildImport(
     meta: {
       [`import_format:${accountId}`]: input.parserId,
       ...(balance?.anchored ? { [anchoredKey(accountId)]: '1' } : {}),
+      // Stato precedente: serve a "Annulla importazione" per riportare il conto com'era.
+      ...(previous
+        ? {
+            [undoKey(batchId)]: serializeUndo({
+              openingBalanceMinor: previous.opening_balance_minor,
+              openingDate: previous.opening_date,
+              anchored: dataset.meta[anchoredKey(accountId)] === '1',
+              operationIds: operations.map((o) => o.id),
+              assetIds: newAssets.map((a) => a.id),
+            }),
+          }
+        : {}),
     },
   };
   const account = dataset.accounts.find((a) => a.id === accountId);

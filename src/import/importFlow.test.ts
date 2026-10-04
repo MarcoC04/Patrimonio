@@ -5,10 +5,11 @@ import { ScriptRepository } from '../data/scriptRepository';
 import { createScript, TEST_SECRET } from '../data/testing/fakeAppsScript';
 import { createAccount } from '../domain/accounts';
 import { buildDefaultCategories } from '../domain/defaultCategories';
-import { quantityAt } from '../domain/investments';
+import { createTrade, quantityAt } from '../domain/investments';
 import { buildImport, buildPlan } from './plan';
 import { processStatement } from './process';
 import type { ParserId } from './types';
+import { buildUndo, undoKey } from './undo';
 
 /**
  * Flusso completo sullo script finto: file → lettura → piano → salvataggio atomico (una
@@ -277,5 +278,180 @@ describe('import di un estratto Trade Republic', () => {
     expect(again.data.transactions).toHaveLength(3);
     expect(again.data.investmentTransactions).toHaveLength(2);
     expect(again.data.assets).toHaveLength(1);
+  });
+});
+
+async function undoLatest(repo: ScriptRepository, batchIndex = -1) {
+  const data = await repo.load();
+  const batches = [...data.importBatches]
+    .filter((b) => b.status === 'committed')
+    .sort((a, b) => a.imported_at.localeCompare(b.imported_at));
+  const batch = batches.at(batchIndex);
+  if (!batch) throw new Error('nessun lotto');
+  const built = buildUndo(data, batch.id);
+  if (built.ok) await repo.save(built.changes);
+  return { built, data: await repo.load(), batchId: batch.id };
+}
+
+describe('annulla importazione', () => {
+  it('Revolut: toglie i movimenti e riporta il conto com’era; il file si può reimportare', async () => {
+    const { repo, accountId } = await setup();
+    await importFile(repo, accountId, 'revolut', REVOLUT, 'rev.csv');
+    const { built, data } = await undoLatest(repo);
+
+    expect(built.ok && built.summary).toMatchObject({
+      transactions: 2,
+      accountRestored: true,
+      noRecord: false,
+    });
+    expect(data.transactions).toHaveLength(0);
+    expect(data.accounts[0]).toMatchObject({
+      opening_balance_minor: 0,
+      opening_date: '2026-01-01',
+    });
+    expect(data.meta[`balance_anchored:${accountId}`]).toBe('0');
+    expect(data.importBatches[0]?.status).toBe('discarded');
+
+    // dopo l'annullo lo stesso file non risulta più importato e si può riportare dentro
+    const again = await importFile(repo, accountId, 'revolut', REVOLUT, 'rev.csv');
+    expect(again.data.transactions).toHaveLength(2);
+    expect(balanceOf(again.data, accountId)).toBe(61279);
+  });
+
+  it('riporta indietro anche l’apertura retrodatata', async () => {
+    const { repo, accountId } = await setup(); // apertura 01/01/2026
+    const early = joinLines(
+      REVOLUT_HEADER,
+      'Trasferimento,Attuale,2025-12-20 10:00:00,2025-12-20 10:00:05,Da Mario Rossi,100.00,0.00,EUR,COMPLETATO,100.00',
+    );
+    await importFile(repo, accountId, 'revolut', early, 'dic.csv');
+    expect((await repo.load()).accounts[0]?.opening_date).toBe('2025-12-20');
+    const { data } = await undoLatest(repo);
+    expect(data.accounts[0]).toMatchObject({
+      opening_date: '2026-01-01',
+      opening_balance_minor: 0,
+    });
+  });
+
+  it('Trade Republic: tolgono anche operazioni di investimento e asset creati dall’import', async () => {
+    const { repo, accountId } = await setup();
+    await importFile(repo, accountId, 'trade_republic', TRADE_REPUBLIC, 'tr.csv');
+    const { built, data } = await undoLatest(repo);
+    expect(built.ok && built.summary).toMatchObject({
+      transactions: 3,
+      operations: 2,
+      assets: 1,
+    });
+    expect(data.transactions).toHaveLength(0);
+    expect(data.investmentTransactions).toHaveLength(0);
+    expect(data.assets).toHaveLength(0);
+  });
+
+  it('un asset che ha altre operazioni non viene eliminato', async () => {
+    const { repo, accountId } = await setup();
+    await importFile(repo, accountId, 'trade_republic', TRADE_REPUBLIC, 'tr.csv');
+    const before = await repo.load();
+    const asset = before.assets[0];
+    if (!asset) throw new Error('asset mancante');
+    // acquisto manuale successivo: non appartiene a nessun lotto
+    const manual = createTrade(
+      {
+        assetId: asset.id,
+        type: 'buy',
+        date: '2026-09-20',
+        quantityText: '1',
+        unitPriceText: '80',
+        feesText: '',
+        accountId: null,
+      },
+      {
+        assets: before.assets,
+        operations: before.investmentTransactions,
+        accounts: before.accounts,
+      },
+    );
+    if (!manual.ok) throw new Error('acquisto manuale non valido');
+    await repo.save({ investmentTransactions: { insert: [manual.value] } });
+    const result = await undoLatest(repo);
+    expect(result.built.ok && result.built.summary.assets).toBe(0);
+    expect(result.data.assets).toHaveLength(1);
+    expect(result.data.investmentTransactions).toHaveLength(1); // resta solo l'acquisto manuale
+  });
+
+  it('una vendita manuale successiva, senza le quote importate, blocca l’annullo', async () => {
+    const { repo, accountId } = await setup();
+    // solo l'acquisto del file (intestazione + interessi + acquisto)
+    const buyOnly = TRADE_REPUBLIC.split(String.fromCharCode(10))
+      .slice(0, 3)
+      .join(String.fromCharCode(10));
+    await importFile(repo, accountId, 'trade_republic', buyOnly, 'tr-acquisto.csv');
+    const data = await repo.load();
+    const asset = data.assets[0];
+    if (!asset) throw new Error('asset mancante');
+    const sell = createTrade(
+      {
+        assetId: asset.id,
+        type: 'sell',
+        date: '2026-09-25',
+        quantityText: '1',
+        unitPriceText: '80',
+        feesText: '',
+        accountId: null,
+      },
+      { assets: data.assets, operations: data.investmentTransactions, accounts: data.accounts },
+    );
+    if (!sell.ok) throw new Error('vendita manuale non valida');
+    await repo.save({ investmentTransactions: { insert: [sell.value] } });
+    const { built } = await undoLatest(repo);
+    expect(built).toEqual({ ok: false, issue: 'holdings' });
+  });
+
+  it('solo l’ultima importazione di un conto ripristina il saldo: prima le più recenti', async () => {
+    const { repo, accountId } = await setup();
+    await importFile(repo, accountId, 'revolut', REVOLUT, 'settembre.csv');
+    const next = joinLines(
+      REVOLUT_HEADER,
+      'Trasferimento,Attuale,2026-09-10 10:00:00,2026-09-10 10:00:05,Da Mario Rossi,50.00,0.00,EUR,COMPLETATO,662.79',
+    );
+    await importFile(repo, accountId, 'revolut', next, 'seconda.csv');
+
+    const first = await undoLatest(repo, 0); // la più vecchia
+    expect(first.built).toEqual({ ok: false, issue: 'not_latest' });
+
+    const second = await undoLatest(repo, -1); // la più recente
+    expect(second.built.ok).toBe(true);
+    expect(balanceOf(second.data, accountId)).toBe(61279); // come dopo il primo import
+
+    const third = await undoLatest(repo, -1); // ora è lei l'ultima
+    expect(third.built.ok).toBe(true);
+    expect(third.data.transactions).toHaveLength(0);
+    expect(third.data.accounts[0]?.opening_balance_minor).toBe(0);
+  });
+
+  it('un import senza stato registrato (fatto prima di questa funzione) toglie i movimenti ma non tocca il conto', async () => {
+    const { repo, accountId } = await setup();
+    await importFile(repo, accountId, 'revolut', REVOLUT, 'rev.csv');
+    let data = await repo.load();
+    const batchId = data.importBatches[0]?.id ?? '';
+    await repo.save({ meta: { [undoKey(batchId)]: '' } }); // come se non fosse mai stato scritto
+    data = await repo.load();
+    const built = buildUndo(data, batchId);
+    if (!built.ok) throw new Error('annullo non riuscito');
+    expect(built.summary).toMatchObject({
+      transactions: 2,
+      accountRestored: false,
+      noRecord: true,
+    });
+    await repo.save(built.changes);
+    data = await repo.load();
+    expect(data.transactions).toHaveLength(0);
+    expect(data.accounts[0]?.opening_balance_minor).toBe(63141); // invariato: da controllare a mano
+  });
+
+  it('non si annulla due volte la stessa importazione', async () => {
+    const { repo, accountId } = await setup();
+    await importFile(repo, accountId, 'revolut', REVOLUT, 'rev.csv');
+    const { batchId } = await undoLatest(repo);
+    expect(buildUndo(await repo.load(), batchId)).toEqual({ ok: false, issue: 'not_found' });
   });
 });

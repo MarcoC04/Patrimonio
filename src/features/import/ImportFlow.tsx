@@ -20,6 +20,7 @@ import { userMessage } from '../../ui/errors';
 import { Field } from '../../ui/Field';
 import { alertClass, buttonClass, inputClass, secondaryButtonClass } from '../../ui/styles';
 import { strings } from '../../ui/strings';
+import { ImportHistory } from './ImportHistory';
 import { ImportRowEditor } from './ImportRowEditor';
 
 const t = strings.importStatement;
@@ -425,6 +426,8 @@ export function ImportFlow({ data, onDone }: Props) {
       <button type="button" className={secondaryButtonClass} onClick={() => onDone()}>
         {strings.common.cancel}
       </button>
+
+      <ImportHistory data={data} onUndone={(message) => onDone(message)} />
     </section>
   );
 }

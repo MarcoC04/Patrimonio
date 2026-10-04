@@ -5,6 +5,7 @@ import type { Account, Asset, CategorizationRule, Transaction } from '../data/sc
 import { buildDefaultCategories } from '../domain/defaultCategories';
 import { buildImport, buildPlan, mapAssetClass, type ImportInput, type PlannedRow } from './plan';
 import type { ImportedRow } from './types';
+import { parseUndo, undoKey } from './undo';
 
 const TS = '2026-01-02T03:04:05.000Z';
 const NOW = new Date('2026-10-04T10:00:00.000Z');
@@ -189,7 +190,16 @@ describe('buildImport: movimenti', () => {
       status: 'committed',
       row_count: 2,
     });
-    expect(built.changes.meta).toEqual({ 'import_format:acc-1': 'revolut' });
+    expect(built.changes.meta?.['import_format:acc-1']).toBe('revolut');
+    // stato precedente del conto, per "Annulla importazione"
+    const undo = parseUndo(built.changes.meta?.[undoKey(batch?.id ?? '')]);
+    expect(undo).toEqual({
+      openingBalanceMinor: 0,
+      openingDate: '2026-01-01',
+      anchored: false,
+      operationIds: [],
+      assetIds: [],
+    });
     expect(built.summary).toEqual({ transactions: 2, trades: 0, newAssets: 0, newRules: 0 });
   });
 

@@ -528,6 +528,35 @@ export const strings = {
       currency:
         'Per ora l’import funziona solo per conti in euro: questo conto è in un’altra valuta.',
     },
+    history: {
+      title: 'Importazioni precedenti',
+      empty: 'Nessuna importazione ancora.',
+      item: (rows: number, date: string) => `${rows} ${rows === 1 ? 'riga' : 'righe'} · ${date}`,
+      undo: 'Annulla importazione',
+      confirm: (filename: string, transactions: number, operations: number, noRecord: boolean) =>
+        `Annullare l’importazione di “${filename}”? Verranno eliminati ${transactions} ${
+          transactions === 1 ? 'movimento' : 'movimenti'
+        }${
+          operations > 0
+            ? ` e ${operations} ${operations === 1 ? 'operazione' : 'operazioni'} di investimento`
+            : ''
+        }, anche se nel frattempo li hai modificati. ${
+          noRecord
+            ? 'Di questa importazione non è registrato lo stato precedente del conto: il saldo iniziale resterà com’è e andrà controllato.'
+            : 'L’apertura e il saldo iniziale del conto torneranno com’erano prima.'
+        }`,
+      issues: {
+        not_found: 'Importazione non trovata: ricarica i dati.',
+        not_latest:
+          'Per ripristinare il saldo, annulla prima le importazioni più recenti di questo conto.',
+        holdings:
+          'Non si può annullare: delle vendite successive rimarrebbero senza le quote acquistate in questa importazione.',
+      },
+      done: (transactions: number, restored: boolean, noRecord: boolean) =>
+        `Importazione annullata: eliminati ${transactions} ${transactions === 1 ? 'movimento' : 'movimenti'}.${
+          restored ? ' Saldo del conto ripristinato.' : ''
+        }${noRecord ? ' Controlla il saldo iniziale del conto.' : ''}`,
+    },
     back: 'Cambia conto o file',
     close: 'Chiudi',
   },
