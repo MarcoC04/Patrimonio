@@ -50,6 +50,16 @@ export const col = {
     format: (value: number) => String(value),
   } satisfies ColumnDef<number>,
 
+  /** Importo in centesimi facoltativo: cella vuota = null. */
+  optionalMinor: {
+    schema: z
+      .string()
+      .regex(/^(-?\d+)?$/)
+      .transform((value) => (value === '' ? null : Number(value)))
+      .refine((value) => value === null || Number.isSafeInteger(value)),
+    format: (value: number | null) => (value === null ? '' : String(value)),
+  } satisfies ColumnDef<number | null>,
+
   /** 0/1 nel foglio, boolean nell'app. */
   flag: {
     schema: z.enum(['0', '1']).transform((value) => value === '1'),

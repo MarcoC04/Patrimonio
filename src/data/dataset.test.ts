@@ -26,6 +26,8 @@ const empty: Dataset = {
   assets: [],
   investmentTransactions: [],
   priceHistory: [],
+  importBatches: [],
+  categorizationRules: [],
   meta: { schema_version: '1' },
 };
 

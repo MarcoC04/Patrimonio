@@ -12,8 +12,10 @@ import { rowsToObjects } from './rows';
 import {
   accountsTable,
   assetsTable,
+  categorizationRulesTable,
   categoriesTable,
   fxRatesTable,
+  importBatchesTable,
   investmentTransactionsTable,
   metaTable,
   priceHistoryTable,
@@ -45,6 +47,8 @@ const ALL_TABLES = [
   assetsTable,
   investmentTransactionsTable,
   priceHistoryTable,
+  importBatchesTable,
+  categorizationRulesTable,
 ];
 
 const META_DEFAULTS: Record<string, string> = {
@@ -155,6 +159,12 @@ export class ScriptRepository implements Repository {
       issues,
     );
     const priceHistory = readTable(priceHistoryTable, values(priceHistoryTable.name), issues);
+    const importBatches = readTable(importBatchesTable, values(importBatchesTable.name), issues);
+    const categorizationRules = readTable(
+      categorizationRulesTable,
+      values(categorizationRulesTable.name),
+      issues,
+    );
 
     const first = issues[0];
     if (first) {
@@ -201,6 +211,14 @@ export class ScriptRepository implements Repository {
       priceHistoryTable.name,
       priceHistory.map((e) => e.id),
     );
+    assertUniqueKeys(
+      importBatchesTable.name,
+      importBatches.map((e) => e.id),
+    );
+    assertUniqueKeys(
+      categorizationRulesTable.name,
+      categorizationRules.map((e) => e.id),
+    );
 
     const metaMap = Object.fromEntries(meta.map((e) => [e.key, e.value]));
     if (metaMap['schema_version'] !== SCHEMA_VERSION) {
@@ -217,6 +235,8 @@ export class ScriptRepository implements Repository {
       assets: assets.filter((e) => !e.deleted),
       investmentTransactions: investmentTransactions.filter((e) => !e.deleted),
       priceHistory: priceHistory.filter((e) => !e.deleted),
+      importBatches: importBatches.filter((e) => !e.deleted),
+      categorizationRules: categorizationRules.filter((e) => !e.deleted),
       meta: metaMap,
     };
   }
@@ -244,6 +264,8 @@ export class ScriptRepository implements Repository {
     collect(assetsTable, changes.assets, appends, updates);
     collect(investmentTransactionsTable, changes.investmentTransactions, appends, updates);
     collect(priceHistoryTable, changes.priceHistory, appends, updates);
+    collect(importBatchesTable, changes.importBatches, appends, updates);
+    collect(categorizationRulesTable, changes.categorizationRules, appends, updates);
 
     // _meta: i valori nuovi si aggiungono, quelli già presenti si riscrivono (la chiave è `key`).
     const metaEntries = Object.entries(changes.meta ?? {}).map(([key, value]) => ({ key, value }));

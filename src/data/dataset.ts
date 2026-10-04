@@ -29,6 +29,8 @@ export function applyChanges(data: Dataset, changes: ChangeSet): Dataset {
     assets: mergeTable(data.assets, changes.assets),
     investmentTransactions: mergeTable(data.investmentTransactions, changes.investmentTransactions),
     priceHistory: mergeTable(data.priceHistory, changes.priceHistory),
+    importBatches: mergeTable(data.importBatches, changes.importBatches),
+    categorizationRules: mergeTable(data.categorizationRules, changes.categorizationRules),
     meta: { ...data.meta, ...changes.meta },
   };
 }

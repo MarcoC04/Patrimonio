@@ -1,8 +1,10 @@
 import type {
   Account,
   Asset,
+  CategorizationRule,
   Category,
   FxRate,
+  ImportBatch,
   InvestmentTransaction,
   PricePoint,
   Transaction,
@@ -22,6 +24,8 @@ export interface Dataset {
   assets: Asset[];
   investmentTransactions: InvestmentTransaction[];
   priceHistory: PricePoint[];
+  importBatches: ImportBatch[];
+  categorizationRules: CategorizationRule[];
   meta: Record<string, string>;
 }
 
@@ -41,6 +45,8 @@ export interface ChangeSet {
   assets?: TableChanges<Asset>;
   investmentTransactions?: TableChanges<InvestmentTransaction>;
   priceHistory?: TableChanges<PricePoint>;
+  importBatches?: TableChanges<ImportBatch>;
+  categorizationRules?: TableChanges<CategorizationRule>;
   /** Valori di `_meta` da impostare (inseriti se nuovi, aggiornati se già presenti). */
   meta?: Record<string, string>;
 }

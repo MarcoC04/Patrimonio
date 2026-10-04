@@ -92,7 +92,9 @@ describe('ScriptRepository.init', () => {
         'accounts',
         'assets',
         'categories',
+        'categorization_rules',
         'fx_rates',
+        'import_batches',
         'investment_transactions',
         'price_history',
         'transactions',
@@ -146,6 +148,8 @@ describe('ScriptRepository.load e save', () => {
       assets: [],
       investmentTransactions: [],
       priceHistory: [],
+      importBatches: [],
+      categorizationRules: [],
       meta: { schema_version: '1', base_currency: 'EUR', locale: 'it-IT' },
     });
   });

@@ -35,6 +35,10 @@ export const INVESTMENT_TYPES = [
   'split',
 ] as const;
 export const PRICE_SOURCES = ['manual', 'api'] as const;
+export const RULE_FIELDS = ['description', 'amount', 'account'] as const;
+export const RULE_MATCH_TYPES = ['contains', 'starts_with', 'equals', 'regex'] as const;
+export const RULE_SOURCES = ['manual', 'learned'] as const;
+export const IMPORT_STATUSES = ['committed', 'discarded'] as const;
 
 export const metaTable = defineTable('_meta', {
   key: col.requiredText,
@@ -135,7 +139,42 @@ export const priceHistoryTable = defineTable('price_history', {
   source: col.oneOf(PRICE_SOURCES),
 });
 
+/** Una riga per ogni importazione: SOLO metadati, mai il contenuto del file (CLAUDE.md). */
+export const importBatchesTable = defineTable('import_batches', {
+  ...common,
+  account_id: col.id,
+  filename: col.text,
+  /** SHA-256 del file (esadecimale): serve a segnalare lo stesso estratto importato due volte. */
+  file_hash: col.text,
+  parser_id: col.requiredText,
+  status: col.oneOf(IMPORT_STATUSES),
+  row_count: col.count,
+  imported_at: col.timestamp,
+});
+
+/**
+ * Regole di categorizzazione. Una regola si applica se **tutte** le sue condizioni valgono:
+ * il conto (se indicato), l'intervallo di importo in valore assoluto (se indicato) e, per
+ * `field = description`, il testo `pattern`. Vince la prima per `priority` (numero più basso).
+ */
+export const categorizationRulesTable = defineTable('categorization_rules', {
+  ...common,
+  priority: col.count,
+  field: col.oneOf(RULE_FIELDS),
+  match_type: col.oneOf(RULE_MATCH_TYPES),
+  pattern: col.text,
+  category_id: col.id,
+  account_id: col.optionalId,
+  amount_min_minor: col.optionalMinor,
+  amount_max_minor: col.optionalMinor,
+  source: col.oneOf(RULE_SOURCES),
+  hit_count: col.count,
+  is_enabled: col.flag,
+});
+
 export type MetaEntry = RowOf<typeof metaTable>;
+export type ImportBatch = RowOf<typeof importBatchesTable>;
+export type CategorizationRule = RowOf<typeof categorizationRulesTable>;
 export type Asset = RowOf<typeof assetsTable>;
 export type InvestmentTransaction = RowOf<typeof investmentTransactionsTable>;
 export type PricePoint = RowOf<typeof priceHistoryTable>;
