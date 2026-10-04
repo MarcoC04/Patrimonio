@@ -2,7 +2,7 @@ import { applyChanges } from '../data/dataset';
 import type { ChangeSet, Dataset, Repository } from '../data/repository';
 import { MIN_SCRIPT_VERSION, ScriptError, type ScriptClient } from '../data/scriptClient';
 import { buildDefaultCategories } from '../domain/defaultCategories';
-import { buildDefaultRules } from '../domain/defaultRules';
+import { buildDefaultRules, buildTransferRules } from '../domain/defaultRules';
 import { strings } from '../ui/strings';
 
 /**
@@ -44,7 +44,9 @@ export async function loadAll(
   // Categorie e regole predefinite si creano una volta sola: se l'utente le cancella, non tornano.
   const seedCategories = data.meta['defaults_seeded'] !== '1';
   const seedRules = data.meta['default_rules_seeded'] !== '1';
-  if (!seedCategories && !seedRules) return data;
+  // Regole dei giroconti: aggiunte una volta sola anche a chi aveva già le altre regole iniziali.
+  const seedTransfers = data.meta['default_transfer_rules_seeded'] !== '1';
+  if (!seedCategories && !seedRules && !seedTransfers) return data;
 
   const changes: ChangeSet = { meta: {} };
   const meta: Record<string, string> = {};
@@ -61,6 +63,14 @@ export async function loadAll(
     // Solo se non ci sono già regole: non si aggiungono a quelle scritte dall'utente.
     const rules = data.categorizationRules.length === 0 ? buildDefaultRules(categories, now) : [];
     if (rules.length > 0) changes.categorizationRules = { insert: rules };
+  }
+  if (seedTransfers) {
+    meta['default_transfer_rules_seeded'] = '1';
+    const transfers = buildTransferRules(categories, now);
+    if (transfers.length > 0) {
+      const planned = changes.categorizationRules?.insert ?? [];
+      changes.categorizationRules = { insert: [...planned, ...transfers] };
+    }
   }
   changes.meta = meta;
   await repository.save(changes);

@@ -129,7 +129,10 @@ export function ImportFlow({ data, onDone }: Props) {
           ? suggestPattern(source.description)
           : null;
       const wanted = similarText === null ? '' : normalizeDescription(similarText);
-      const sameKind = (r: PlannedRow) => r.amountMinor < 0 === (source?.amountMinor ?? 0) < 0;
+      // Un giroconto vale per entrate e uscite; una categoria solo per righe dello stesso segno.
+      const toTransfer = patch.transfer === true;
+      const sameKind = (r: PlannedRow) =>
+        toTransfer || r.amountMinor < 0 === (source?.amountMinor ?? 0) < 0;
       return {
         ...current,
         rows: current.rows.map((r) => {
@@ -140,7 +143,7 @@ export function ImportFlow({ data, onDone }: Props) {
             r.categoryId === null &&
             sameKind(r) &&
             normalizeDescription(r.description).includes(wanted);
-          return similar ? { ...r, categoryId: patch.categoryId ?? null } : r;
+          return similar ? { ...r, categoryId: patch.categoryId ?? null, transfer: toTransfer } : r;
         }),
       };
     });

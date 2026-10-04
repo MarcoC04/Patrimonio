@@ -18,6 +18,9 @@ interface Props {
 
 const t = strings.importStatement;
 
+/** Valore del menu per "Giroconto" (non è una categoria di spesa o entrata). */
+const TRANSFER_VALUE = '__transfer__';
+
 /** Una riga dell'anteprima: tutto ciò che l'utente può correggere prima di confermare. */
 export function ImportRowEditor({ row, categories, problems, onChange }: Props) {
   const idBase = `import-row-${row.key}`;
@@ -28,7 +31,8 @@ export function ImportRowEditor({ row, categories, problems, onChange }: Props) 
     ...(row.duplicate ? [t.badges.duplicate] : []),
     ...row.warnings.map((warning) => t.badges[warning]),
   ];
-  const canLearn = !row.trade && !row.transfer && row.categoryId !== null && row.ruleId === null;
+  const transferCategory = categories.find((c) => c.kind === 'transfer');
+  const canLearn = !row.trade && row.categoryId !== null && row.ruleId === null;
   const suggestion = suggestPattern(row.description);
 
   return (
@@ -110,7 +114,7 @@ export function ImportRowEditor({ row, categories, problems, onChange }: Props) 
               onChange({
                 amountMinor: minor,
                 // Passando da spesa a entrata (o viceversa) la categoria scelta non è più adatta.
-                ...(changedKind && !row.trade
+                ...(changedKind && !row.trade && !row.transfer
                   ? { categoryId: null, ruleId: null, learnPattern: null }
                   : {}),
               });
@@ -134,26 +138,34 @@ export function ImportRowEditor({ row, categories, problems, onChange }: Props) 
         />
       </div>
 
-      {!row.trade && !row.transfer && (
+      {!row.trade && (
         <div className="mt-2">
           <label htmlFor={`${idBase}-category`} className="mb-1 block text-xs font-medium">
             {t.category}
           </label>
           <select
             id={`${idBase}-category`}
-            value={row.categoryId ?? ''}
-            onChange={(e) =>
+            value={row.transfer ? TRANSFER_VALUE : (row.categoryId ?? '')}
+            onChange={(e) => {
+              const value = e.target.value;
+              const isTransfer = value === TRANSFER_VALUE;
               onChange({
-                categoryId: e.target.value === '' ? null : e.target.value,
+                transfer: isTransfer,
+                categoryId: isTransfer
+                  ? (transferCategory?.id ?? null)
+                  : value === ''
+                    ? null
+                    : value,
                 // La categoria scelta a mano sostituisce quella proposta dalla regola.
                 ruleId: null,
                 // "Ricorda" parte attivo: la regola proposta si può modificare o togliere.
-                learnPattern: e.target.value === '' ? null : suggestion,
-              })
-            }
+                learnPattern: value === '' ? null : suggestion,
+              });
+            }}
             className={inputClass}
           >
             <option value="">{strings.transactions.toCategorize}</option>
+            {transferCategory && <option value={TRANSFER_VALUE}>{t.transferOption}</option>}
             {sortedCategories(categories, kind).map((category) => (
               <option key={category.id} value={category.id}>
                 {categoryPath(category, categories)}

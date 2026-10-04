@@ -87,26 +87,29 @@ export async function buildPlan(
 
     let categoryId: string | null = null;
     let ruleId: string | null = null;
+    let isTransfer = row.transfer ?? false;
     if (row.trade || row.transfer) {
       categoryId = transferCategory?.id ?? null;
     } else {
       // Si considerano solo le regole la cui categoria è adatta al segno: un rimborso Amazon
       // non deve fermarsi alla regola "amazon → Shopping" (una spesa).
       const wantedKind = row.amountMinor < 0 ? 'expense' : 'income';
-      const usable = dataset.categorizationRules.filter(
-        (r) => dataset.categories.find((c) => c.id === r.category_id)?.kind === wantedKind,
-      );
+      // Le regole verso "Trasferimento" valgono per qualunque segno: sono i giroconti.
+      const usable = dataset.categorizationRules.filter((r) => {
+        const kind = dataset.categories.find((c) => c.id === r.category_id)?.kind;
+        return kind === wantedKind || kind === 'transfer';
+      });
       const rule = findRule(usable, {
         description: row.description,
         rawDescription: row.rawDescription,
         amountMinor: row.amountMinor,
         accountId,
       });
-      const kind = row.amountMinor < 0 ? 'expense' : 'income';
       const category = rule && dataset.categories.find((c) => c.id === rule.category_id);
-      if (rule && category && category.kind === kind) {
+      if (rule && category) {
         categoryId = category.id;
         ruleId = rule.id;
+        isTransfer = category.kind === 'transfer';
       }
     }
 
@@ -126,7 +129,7 @@ export async function buildPlan(
       externalId: row.externalId,
       hash: hashes[index] ?? '',
       trade: row.trade,
-      transfer: row.transfer ?? false,
+      transfer: isTransfer,
     };
   });
 
@@ -377,14 +380,14 @@ export function buildImport(
   const touched = new Map<string, CategorizationRule>();
   const inserted: CategorizationRule[] = [];
   for (const row of included) {
-    if (row.ruleId && !row.trade && !row.transfer) {
+    if (row.ruleId && !row.trade) {
       const base =
         touched.get(row.ruleId) ?? dataset.categorizationRules.find((r) => r.id === row.ruleId);
       if (base) touched.set(base.id, registerHit(base, now));
     }
   }
   for (const row of included) {
-    if (!row.learnPattern || !row.categoryId || row.trade || row.transfer) continue;
+    if (!row.learnPattern || !row.categoryId || row.trade) continue;
     const known = [...dataset.categorizationRules.map((r) => touched.get(r.id) ?? r), ...inserted];
     const learned = learnRule(
       { pattern: row.learnPattern, categoryId: row.categoryId, accountId: null },

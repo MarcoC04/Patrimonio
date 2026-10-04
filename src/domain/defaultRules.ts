@@ -4,10 +4,10 @@ import { uuidv7 } from './uuid7';
 
 /**
  * Regole iniziali di categorizzazione: esercenti e parole comuni in Italia. Sono un punto di
- * partenza, modificabili e disattivabili. Hanno prioritÃ  da 1000 in su, cosÃ¬ le regole create
- * dall'utente (che partono da 1) vincono sempre. Il testo si confronta senza accenti nÃ© maiuscole
+ * partenza, modificabili e disattivabili. Hanno priorità da 1000 in su, così le regole create
+ * dall'utente (che partono da 1) vincono sempre. Il testo si confronta senza accenti né maiuscole
  * ("contiene"): si usano solo parole abbastanza distintive da non scattare per caso.
- * L'ordine conta: le voci piÃ¹ specifiche stanno prima (es. "amazon prime" prima di "amazon").
+ * L'ordine conta: le voci più specifiche stanno prima (es. "amazon prime" prima di "amazon").
  */
 interface Seed {
   category: string;
@@ -16,7 +16,7 @@ interface Seed {
 }
 
 const SEEDS: readonly Seed[] = [
-  // â€” Entrate â€”
+  // — Entrate —
   { category: 'Stipendio', kind: 'income', patterns: ['stipendio', 'emolumenti', 'salary'] },
   {
     category: 'Interessi e dividendi',
@@ -25,7 +25,7 @@ const SEEDS: readonly Seed[] = [
   },
   { category: 'Rimborsi', kind: 'income', patterns: ['rimborso', 'refund', 'storno'] },
 
-  // â€” Abbonamenti (prima di Shopping/Svago: "amazon prime" non Ã¨ "amazon") â€”
+  // — Abbonamenti (prima di Shopping/Svago: "amazon prime" non è "amazon") —
   {
     category: 'Abbonamenti',
     kind: 'expense',
@@ -51,7 +51,7 @@ const SEEDS: readonly Seed[] = [
     ],
   },
 
-  // â€” Cibo â€”
+  // — Cibo —
   {
     category: 'Ristoranti',
     kind: 'expense',
@@ -103,7 +103,7 @@ const SEEDS: readonly Seed[] = [
     ],
   },
 
-  // â€” Trasporti â€”
+  // — Trasporti —
   {
     category: 'Trasporti',
     kind: 'expense',
@@ -132,7 +132,7 @@ const SEEDS: readonly Seed[] = [
     ],
   },
 
-  // â€” Casa e utenze â€”
+  // — Casa e utenze —
   {
     category: 'Casa',
     kind: 'expense',
@@ -157,7 +157,7 @@ const SEEDS: readonly Seed[] = [
     ],
   },
 
-  // â€” Salute â€”
+  // — Salute —
   {
     category: 'Salute',
     kind: 'expense',
@@ -173,7 +173,7 @@ const SEEDS: readonly Seed[] = [
     ],
   },
 
-  // â€” Svago â€”
+  // — Svago —
   {
     category: 'Svago',
     kind: 'expense',
@@ -192,7 +192,7 @@ const SEEDS: readonly Seed[] = [
     ],
   },
 
-  // â€” Abbigliamento e shopping â€”
+  // — Abbigliamento e shopping —
   {
     category: 'Abbigliamento',
     kind: 'expense',
@@ -216,7 +216,7 @@ const SEEDS: readonly Seed[] = [
     ],
   },
 
-  // â€” Tasse â€”
+  // — Tasse —
   {
     category: 'Tasse',
     kind: 'expense',
@@ -224,12 +224,55 @@ const SEEDS: readonly Seed[] = [
   },
 ];
 
-/** PrioritÃ  di partenza delle regole iniziali: sopra a qualunque regola creata dall'utente. */
+/**
+ * Regole iniziali dei giroconti tra i propri conti (es. bonifico dal conto corrente al deposito
+ * Trade Republic). Hanno un numero di priorità più basso delle altre iniziali: "Trade Republic"
+ * deve battere "Alimentari" o "Shopping". Modificabili come tutte le regole.
+ */
+const TRANSFER_PATTERNS = [
+  'trade republic',
+  'traderepublic',
+  'giroconto',
+  'giro conto',
+  'trasferimento tra conti',
+  'trasferimento a conto',
+];
+
+export const TRANSFER_RULE_PRIORITY_START = 950;
+
+export function buildTransferRules(
+  categories: readonly Category[],
+  now: Date = new Date(),
+  newId: () => string = () => uuidv7(now.getTime()),
+): CategorizationRule[] {
+  const category = categories.find((c) => c.kind === 'transfer');
+  if (!category) return [];
+  const timestamp = now.toISOString();
+  return TRANSFER_PATTERNS.map((pattern, index) => ({
+    id: newId(),
+    created_at: timestamp,
+    updated_at: timestamp,
+    deleted: false,
+    priority: TRANSFER_RULE_PRIORITY_START + index,
+    field: 'description' as const,
+    match_type: 'contains' as const,
+    pattern,
+    category_id: category.id,
+    account_id: null,
+    amount_min_minor: null,
+    amount_max_minor: null,
+    source: 'default' as const,
+    hit_count: 0,
+    is_enabled: true,
+  }));
+}
+
+/** Priorità di partenza delle regole iniziali: sopra a qualunque regola creata dall'utente. */
 export const DEFAULT_RULE_PRIORITY_START = 1000;
 
 /**
  * Regole iniziali per le categorie esistenti (per nome e tipo). Le voci la cui categoria non
- * esiste piÃ¹ si saltano: non si inventano categorie.
+ * esiste più si saltano: non si inventano categorie.
  */
 export function buildDefaultRules(
   categories: readonly Category[],

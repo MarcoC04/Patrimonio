@@ -462,6 +462,7 @@ export const strings = {
     line: (line: number) => `Riga ${line} del file`,
     investment: (type: 'buy' | 'sell', quantity: string) =>
       `${type === 'buy' ? 'Acquisto' : 'Vendita'} · ${quantity} quote`,
+    transferOption: 'Giroconto tra i miei conti',
     transferNote: 'Giroconto tra i tuoi conti: non conta come entrata o spesa.',
     investmentNote: 'Registrato negli Investimenti e come giroconto dal conto.',
     learn: 'Ricorda per i prossimi estratti',

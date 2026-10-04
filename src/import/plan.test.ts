@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { applyChanges } from '../data/dataset';
 import type { Dataset } from '../data/repository';
 import type { Account, Asset, CategorizationRule, Transaction } from '../data/schema';
@@ -123,7 +123,7 @@ describe('buildPlan', () => {
     expect(p.rows[2]?.warnings).toEqual(['other_currency']); // aggiunto dal confronto col conto
   });
 
-  it('segnala come duplicata una riga giÃ  importata (stesso conto) e la esclude', async () => {
+  it('segnala come duplicata una riga già importata (stesso conto) e la esclude', async () => {
     const first = await plan(dataset(), [imported()]);
     const built = buildImport(importInput(dataset(), first.rows), NOW, newId);
     if (!built.ok) throw new Error('import non riuscito');
@@ -135,7 +135,7 @@ describe('buildPlan', () => {
     expect(again.fileAlreadyImported).toBe(true);
   });
 
-  it('un conto diverso con la stessa riga non Ã¨ un duplicato', async () => {
+  it('un conto diverso con la stessa riga non è un duplicato', async () => {
     const first = await plan(dataset(), [imported()]);
     const built = buildImport(importInput(dataset(), first.rows), NOW, newId);
     if (!built.ok) throw new Error('import non riuscito');
@@ -203,7 +203,7 @@ describe('buildImport: movimenti', () => {
     expect(built.summary).toEqual({ transactions: 2, trades: 0, newAssets: 0, newRules: 0 });
   });
 
-  it('salta le righe escluse e rispetta le modifiche dellâ€™utente (importo, data, categoria)', async () => {
+  it('salta le righe escluse e rispetta le modifiche dell’utente (importo, data, categoria)', async () => {
     const data = dataset();
     const svago = category(data, 'Svago', 'expense');
     const p = await plan(data, [imported(), imported({ description: 'Da scartare' })]);
@@ -338,7 +338,7 @@ describe('buildImport: regole', () => {
     if (!built.ok) throw new Error('import non riuscito');
 
     const rules = built.changes.categorizationRules;
-    expect(rules?.update?.map((r) => [r.id, r.hit_count])).toEqual([['rule-1', 6]]); // due righe â†’ +2
+    expect(rules?.update?.map((r) => [r.id, r.hit_count])).toEqual([['rule-1', 6]]); // due righe → +2
     expect(rules?.insert).toHaveLength(1);
     expect(rules?.insert?.[0]).toMatchObject({
       pattern: 'cinema centrale',
@@ -349,7 +349,7 @@ describe('buildImport: regole', () => {
     expect(built.summary.newRules).toBe(1);
   });
 
-  it('senza regole nÃ© correzioni il ChangeSet non tocca la scheda delle regole', async () => {
+  it('senza regole né correzioni il ChangeSet non tocca la scheda delle regole', async () => {
     const data = dataset();
     const p = await plan(data, [imported()]);
     const built = buildImport(importInput(data, p.rows), NOW, newId);
@@ -363,7 +363,7 @@ describe('buildImport: acquisti e vendite (Trade Republic)', () => {
     imported({
       description: 'Acquisto ETF Mondo Finto',
       rawDescription: '',
-      // 2 quote Ã— 50,00 â‚¬ + 1,00 â‚¬ di commissione = 101,00 â‚¬ in uscita dal deposito
+      // 2 quote × 50,00 € + 1,00 € di commissione = 101,00 € in uscita dal deposito
       amountMinor: -10100,
       externalId: 'tx-buy-1',
       trade: {
@@ -418,7 +418,7 @@ describe('buildImport: acquisti e vendite (Trade Republic)', () => {
     expect(built.summary).toEqual({ transactions: 1, trades: 1, newAssets: 1, newRules: 0 });
   });
 
-  it('riusa lâ€™asset esistente (stesso ISIN) invece di crearne un altro', async () => {
+  it('riusa l’asset esistente (stesso ISIN) invece di crearne un altro', async () => {
     const existingAsset: Asset = {
       id: 'asset-1',
       created_at: TS,
@@ -439,7 +439,7 @@ describe('buildImport: acquisti e vendite (Trade Republic)', () => {
     expect(built.changes.investmentTransactions?.insert?.[0]?.asset_id).toBe('asset-1');
   });
 
-  it('una vendita oltre le quote possedute blocca lâ€™import', async () => {
+  it('una vendita oltre le quote possedute blocca l’import', async () => {
     const data = dataset();
     const sell = buy({
       amountMinor: 20000,
@@ -492,7 +492,7 @@ describe('mapAssetClass', () => {
     ['BOND', 'bond'],
     ['QUALCOSA', 'other'],
     ['', 'other'],
-  ])('%s â†’ %s', (raw, expected) => {
+  ])('%s → %s', (raw, expected) => {
     expect(mapAssetClass(raw)).toBe(expected);
   });
 });
