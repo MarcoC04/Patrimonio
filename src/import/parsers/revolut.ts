@@ -63,6 +63,7 @@ export const revolutParser: StatementParser = {
         rawDescription: [type, description].filter((part) => part !== '').join(' – '),
         externalId: null,
         trade: null,
+        balanceMinor: technicalAmountToMinor(cell(cells, header, 'Saldo')),
         warnings,
       });
     }

@@ -1,5 +1,6 @@
 import type { ChangeSet, Dataset } from '../data/repository';
 import type { Asset, CategorizationRule, InvestmentTransaction, Transaction } from '../data/schema';
+import { computeBalanceUpdate, statementEndBalance, type BalanceUpdate } from '../domain/balance';
 import { dedupeHashes } from '../domain/dedupe';
 import { createAsset, createTrade, type AssetIssue, type TradeIssue } from '../domain/investments';
 import { createMovement, type MovementIssue } from '../domain/movements';
@@ -40,6 +41,12 @@ export interface PlannedRow {
 
 export interface Plan {
   rows: PlannedRow[];
+  /** Saldo a fine estratto, se il file lo riporta (Revolut); altrimenti null. */
+  endBalanceMinor: number | null;
+  /** Giorno a cui si riferisce il saldo di fine estratto (ultimo giorno con righe complete). */
+  anchorDate: string | null;
+  /** Il saldo iniziale di questo conto è già stato ricavato da un estratto precedente. */
+  alreadyAnchored: boolean;
   /** Lo stesso file (stesso contenuto) risulta già importato su questo conto. */
   fileAlreadyImported: boolean;
 }
@@ -125,7 +132,53 @@ export async function buildPlan(
       (b) =>
         b.account_id === accountId && b.file_hash === input.fileHash && b.status === 'committed',
     );
-  return { ok: true, plan: { rows, fileAlreadyImported } };
+  const completed = (row: ImportedRow) => !row.warnings.includes('not_completed');
+  const end = statementEndBalance(
+    input.rows.map((row) => ({
+      date: row.date,
+      balanceMinor: row.balanceMinor,
+      completed: completed(row),
+    })),
+  );
+  const completedDates = input.rows.filter(completed).map((row) => row.date);
+  const lastDate =
+    completedDates.length === 0 ? null : completedDates.reduce((a, b) => (a > b ? a : b));
+  return {
+    ok: true,
+    plan: {
+      rows,
+      fileAlreadyImported,
+      endBalanceMinor: end?.balanceMinor ?? null,
+      anchorDate: end?.date ?? lastDate,
+      alreadyAnchored: dataset.meta[anchoredKey(accountId)] === '1',
+    },
+  };
+}
+
+const anchoredKey = (accountId: string) => `balance_anchored:${accountId}`;
+
+/** Come cambia il conto importando le righe scelte (retrodatazione e saldo a fine estratto). */
+export function previewBalance(input: {
+  dataset: Dataset;
+  accountId: string;
+  rows: readonly PlannedRow[];
+  declaredMinor: number | null;
+  anchorDate: string | null;
+}): BalanceUpdate | null {
+  const account = input.dataset.accounts.find((a) => a.id === input.accountId);
+  if (!account) return null;
+  return computeBalanceUpdate({
+    account,
+    existing: input.dataset.transactions
+      .filter((t) => t.account_id === input.accountId)
+      .map((t) => ({ date: t.date, amountMinor: t.amount_minor })),
+    added: input.rows
+      .filter((r) => r.include)
+      .map((r) => ({ date: r.date, amountMinor: r.amountMinor })),
+    declaredMinor: input.declaredMinor,
+    anchorDate: input.anchorDate,
+    alreadyAnchored: input.dataset.meta[anchoredKey(input.accountId)] === '1',
+  });
 }
 
 export type RowIssue = MovementIssue | TradeIssue | AssetIssue | 'transfer_category';
@@ -137,6 +190,9 @@ export interface ImportInput {
   fileHash: string;
   rows: readonly PlannedRow[];
   dataset: Dataset;
+  /** Saldo del conto a fine estratto (dal file o scritto dall'utente); null se non si conosce. */
+  declaredMinor?: number | null;
+  anchorDate?: string | null;
 }
 
 export interface ImportSummary {
@@ -147,7 +203,7 @@ export interface ImportSummary {
 }
 
 export type ImportBuild =
-  | { ok: true; changes: ChangeSet; summary: ImportSummary }
+  | { ok: true; changes: ChangeSet; summary: ImportSummary; balance: BalanceUpdate | null }
   | { ok: false; rowIssues: { key: number; issue: RowIssue }[] };
 
 /** Quando il testo della banca è un ISIN lo si salva come tale invece che come simbolo. */
@@ -182,7 +238,27 @@ export function buildImport(
   newId: () => string = () => uuidv7(now.getTime()),
 ): ImportBuild {
   const { dataset, accountId } = input;
-  const ctx = { accounts: dataset.accounts, categories: dataset.categories };
+  // L'estratto può contenere righe precedenti all'apertura del conto: l'apertura si sposta
+  // indietro (e il saldo si riancora) invece di rifiutarle.
+  const balance = previewBalance({
+    dataset,
+    accountId,
+    rows: input.rows,
+    declaredMinor: input.declaredMinor ?? null,
+    anchorDate: input.anchorDate ?? null,
+  });
+  const ctx = {
+    accounts: dataset.accounts.map((a) =>
+      a.id === accountId && balance
+        ? {
+            ...a,
+            opening_date: balance.openingDate,
+            opening_balance_minor: balance.openingBalanceMinor,
+          }
+        : a,
+    ),
+    categories: dataset.categories,
+  };
   const transferCategory = dataset.categories.find((c) => c.kind === 'transfer');
   const issues: { key: number; issue: RowIssue }[] = [];
 
@@ -327,8 +403,24 @@ export function buildImport(
         },
       ],
     },
-    meta: { [`import_format:${accountId}`]: input.parserId },
+    meta: {
+      [`import_format:${accountId}`]: input.parserId,
+      ...(balance?.anchored ? { [anchoredKey(accountId)]: '1' } : {}),
+    },
   };
+  const account = dataset.accounts.find((a) => a.id === accountId);
+  if (account && balance?.changed) {
+    changes.accounts = {
+      update: [
+        {
+          ...account,
+          opening_date: balance.openingDate,
+          opening_balance_minor: balance.openingBalanceMinor,
+          updated_at: timestamp,
+        },
+      ],
+    };
+  }
   if (newAssets.length > 0) changes.assets = { insert: newAssets };
   if (operations.length > 0) changes.investmentTransactions = { insert: operations };
   if (inserted.length > 0 || touched.size > 0) {
@@ -343,5 +435,6 @@ export function buildImport(
       newAssets: newAssets.length,
       newRules: inserted.length,
     },
+    balance,
   };
 }

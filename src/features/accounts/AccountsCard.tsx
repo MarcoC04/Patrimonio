@@ -154,7 +154,11 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
           autoComplete="off"
         />
       </Field>
-      <Field label={strings.accounts.openingDate} htmlFor="account-date">
+      <Field
+        label={strings.accounts.openingDate}
+        htmlFor="account-date"
+        hint={strings.accounts.openingDateHint}
+      >
         <input
           id="account-date"
           type="date"

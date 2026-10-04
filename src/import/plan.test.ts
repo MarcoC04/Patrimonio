@@ -58,6 +58,7 @@ const imported = (over: Partial<ImportedRow> = {}): ImportedRow => ({
   rawDescription: 'POS NEGOZIO UNO ROMA',
   externalId: null,
   trade: null,
+  balanceMinor: null,
   warnings: [],
   ...over,
 });
@@ -222,9 +223,85 @@ describe('buildImport: movimenti', () => {
 
   it('una riga non valida blocca tutto: nessun ChangeSet (niente scritture parziali)', async () => {
     const data = dataset();
-    const p = await plan(data, [imported(), imported({ date: '2025-12-31' })]); // prima dell'apertura del conto
+    const p = await plan(data, [imported(), imported({ date: 'non-una-data' })]);
     const built = buildImport(importInput(data, p.rows), NOW, newId);
-    expect(built).toEqual({ ok: false, rowIssues: [{ key: 1, issue: 'before_opening' }] });
+    expect(built).toEqual({ ok: false, rowIssues: [{ key: 1, issue: 'date' }] });
+  });
+});
+
+describe('buildImport: saldo del conto', () => {
+  it('righe precedenti all’apertura non sono più un errore: l’apertura si sposta indietro', async () => {
+    const data = dataset(); // apertura 01/01/2026, saldo iniziale 0 (ignoto)
+    const p = await plan(data, [imported({ date: '2025-12-31' })]);
+    const built = buildImport(importInput(data, p.rows), NOW, newId);
+    if (!built.ok) throw new Error('import non riuscito');
+    expect(built.changes.accounts?.update?.[0]).toMatchObject({
+      opening_date: '2025-12-31',
+      opening_balance_minor: 0,
+    });
+    expect(built.balance?.backdated).toBe(true);
+  });
+
+  it('con il saldo a fine estratto fissa il saldo iniziale e lo ricorda', async () => {
+    // Due uscite da 9,31 €; saldo dichiarato a fine estratto 622,10 € → saldo iniziale 640,72 €
+    const data = dataset();
+    const p = await plan(data, [imported(), imported({ date: '2026-09-02' })]);
+    const built = buildImport(
+      importInput(data, p.rows, { declaredMinor: 62210, anchorDate: '2026-09-02' }),
+      NOW,
+      newId,
+    );
+    if (!built.ok) throw new Error('import non riuscito');
+    expect(built.changes.accounts?.update?.[0]?.opening_balance_minor).toBe(64072);
+    expect(built.changes.meta?.['balance_anchored:acc-1']).toBe('1');
+  });
+
+  it('dopo l’import il saldo del conto coincide con quello dell’estratto (poi si aggiorna da solo)', async () => {
+    const data = dataset();
+    const p = await plan(data, [imported(), imported({ date: '2026-09-02' })]);
+    const built = buildImport(
+      importInput(data, p.rows, { declaredMinor: 62210, anchorDate: '2026-09-02' }),
+      NOW,
+      newId,
+    );
+    if (!built.ok) throw new Error('import non riuscito');
+    const after = applyChanges(data, built.changes);
+    const account = after.accounts[0];
+    const balance =
+      (account?.opening_balance_minor ?? 0) +
+      after.transactions.reduce((n, t) => n + t.amount_minor, 0);
+    expect(balance).toBe(62210);
+  });
+
+  it('senza saldo dichiarato il conto non viene toccato se le righe sono dopo l’apertura', async () => {
+    const data = dataset();
+    const p = await plan(data, [imported()]);
+    const built = buildImport(importInput(data, p.rows), NOW, newId);
+    if (!built.ok) throw new Error('import non riuscito');
+    expect(built.changes.accounts).toBeUndefined();
+    expect(built.changes.meta?.['balance_anchored:acc-1']).toBeUndefined();
+  });
+
+  it('il piano propone il saldo di fine estratto e il giorno, dalle righe completate', async () => {
+    const data = dataset();
+    const p = await plan(data, [
+      imported({ date: '2026-09-01', balanceMinor: 100 }),
+      imported({ date: '2026-09-03', balanceMinor: 300 }),
+      imported({ date: '2026-09-05', balanceMinor: 999, warnings: ['not_completed'] }),
+    ]);
+    expect(p.endBalanceMinor).toBe(300);
+    expect(p.anchorDate).toBe('2026-09-03');
+    expect(p.alreadyAnchored).toBe(false);
+  });
+
+  it('senza saldo nel file il giorno resta quello dell’ultima riga completata', async () => {
+    const data = dataset();
+    const p = await plan(data, [
+      imported({ date: '2026-09-01' }),
+      imported({ date: '2026-09-07' }),
+    ]);
+    expect(p.endBalanceMinor).toBeNull();
+    expect(p.anchorDate).toBe('2026-09-07');
   });
 });
 

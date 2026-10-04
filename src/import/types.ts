@@ -49,6 +49,8 @@ export interface ImportedRow {
   /** Identificativo assegnato dalla banca, se esiste (es. transaction_id di Trade Republic). */
   externalId: string | null;
   trade: ImportedTrade | null;
+  /** Saldo del conto DOPO questa riga, se l'estratto lo riporta (Revolut: colonna Saldo). */
+  balanceMinor: number | null;
   warnings: RowWarning[];
 }
 

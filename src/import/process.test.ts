@@ -20,6 +20,7 @@ describe('processStatement', () => {
       date: '2026-09-01',
       amountMinor: -931,
       currency: 'EUR',
+      balanceMinor: 62210, // colonna Saldo: 622,10 €
     });
     expect(result.fileHash).toBe(await sha256Hex(file));
   });

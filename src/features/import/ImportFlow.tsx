@@ -3,9 +3,16 @@ import { Link } from 'react-router';
 import { useData } from '../../app/DataProvider';
 import type { Dataset } from '../../data/repository';
 import { normalizeDescription } from '../../domain/dedupe';
-import { formatMoney } from '../../domain/money';
+import { formatDateIt } from '../../domain/dates';
+import { formatMoney, formatPlain, parseMoney } from '../../domain/money';
 import { suggestPattern } from '../../domain/rules';
-import { buildImport, buildPlan, type PlannedRow, type RowIssue } from '../../import/plan';
+import {
+  buildImport,
+  buildPlan,
+  previewBalance,
+  type PlannedRow,
+  type RowIssue,
+} from '../../import/plan';
 import { getParser, isParserId, PARSERS } from '../../import/parsers';
 import { readStatement } from '../../import/readStatement';
 import type { ParserId } from '../../import/types';
@@ -29,6 +36,11 @@ interface Loaded {
   rows: PlannedRow[];
   fileAlreadyImported: boolean;
   skipped: number;
+  /** Saldo a fine estratto: letto dal file (Revolut) o scritto dall'utente. */
+  declaredText: string;
+  /** Il file riporta il saldo (il campo è già compilato). */
+  balanceFromFile: boolean;
+  anchorDate: string | null;
 }
 
 /**
@@ -84,6 +96,10 @@ export function ImportFlow({ data, onDone }: Props) {
         rows: planned.plan.rows,
         fileAlreadyImported: planned.plan.fileAlreadyImported,
         skipped: parsed.skipped.length,
+        declaredText:
+          planned.plan.endBalanceMinor === null ? '' : formatPlain(planned.plan.endBalanceMinor),
+        balanceFromFile: planned.plan.endBalanceMinor !== null,
+        anchorDate: planned.plan.anchorDate,
       });
     } catch (e) {
       setError(userMessage(e));
@@ -132,9 +148,35 @@ export function ImportFlow({ data, onDone }: Props) {
   const duplicates = loaded?.rows.filter((r) => r.duplicate).length ?? 0;
   const toCheck = loaded?.rows.filter((r) => !r.duplicate && r.warnings.length > 0).length ?? 0;
 
+  const declaredText = loaded?.declaredText.trim() ?? '';
+  const declaredMinor = declaredText === '' ? null : parseMoney(declaredText);
+  const declaredInvalid = declaredText !== '' && declaredMinor === null;
+  const balance = loaded
+    ? previewBalance({
+        dataset: data,
+        accountId,
+        rows: loaded.rows,
+        declaredMinor,
+        anchorDate: loaded.anchorDate,
+      })
+    : null;
+  // Saldo del conto dopo l'importazione: saldo iniziale + tutti i movimenti (vecchi e nuovi).
+  const balanceAfter =
+    balance === null
+      ? null
+      : balance.openingBalanceMinor +
+        data.transactions
+          .filter((tx) => tx.account_id === accountId)
+          .reduce((n, tx) => n + tx.amount_minor, 0) +
+        netMinor;
+
   const confirm = async () => {
     if (!loaded) return;
     setError(null);
+    if (declaredInvalid) {
+      setError(t.balance.invalid);
+      return;
+    }
     if (selected.length === 0) {
       setError(t.nothingSelected);
       return;
@@ -146,6 +188,8 @@ export function ImportFlow({ data, onDone }: Props) {
       fileHash: loaded.fileHash,
       rows: loaded.rows,
       dataset: data,
+      declaredMinor,
+      anchorDate: loaded.anchorDate,
     });
     if (!built.ok) {
       const byRow = new Map<number, string[]>();
@@ -218,6 +262,56 @@ export function ImportFlow({ data, onDone }: Props) {
             {error}
           </p>
         )}
+
+        <fieldset className="mb-4 rounded-lg border border-line p-3">
+          <legend className="px-1 text-sm font-semibold">{t.balance.title}</legend>
+          <Field
+            label={t.balance.label}
+            htmlFor="import-end-balance"
+            hint={loaded.balanceFromFile ? t.balance.hintFromFile : t.balance.hintManual}
+          >
+            <input
+              id="import-end-balance"
+              inputMode="decimal"
+              value={loaded.declaredText}
+              aria-invalid={declaredInvalid}
+              onChange={(e) =>
+                setLoaded((current) =>
+                  current ? { ...current, declaredText: e.target.value } : current,
+                )
+              }
+              className={`${inputClass} ${declaredInvalid ? 'border-expense' : ''}`}
+              autoComplete="off"
+            />
+          </Field>
+          {declaredInvalid && (
+            <p className="text-sm font-semibold text-expense">{t.balance.invalid}</p>
+          )}
+          {balance && !declaredInvalid && (
+            <ul className="space-y-1 text-sm">
+              {balance.backdated && (
+                <li>{t.balance.backdated(formatDateIt(balance.openingDate))}</li>
+              )}
+              {balance.anchored && balanceAfter !== null && (
+                <li className="font-medium">{t.balance.after(formatMoney(balanceAfter))}</li>
+              )}
+              {balance.differenceMeaningful && balance.differenceMinor === 0 && (
+                <li>{t.balance.matches}</li>
+              )}
+              {balance.differenceMeaningful && balance.differenceMinor !== 0 && (
+                <li role="alert" className="font-semibold text-expense">
+                  {t.balance.mismatch(formatMoney(balance.differenceMinor ?? 0))}
+                </li>
+              )}
+              {balance.anchored && !balance.differenceMeaningful && (
+                <li className="text-muted">
+                  {t.balance.openingDerived(formatMoney(balance.openingBalanceMinor))}
+                </li>
+              )}
+              {!balance.anchored && <li className="text-muted">{t.balance.notAnchored}</li>}
+            </ul>
+          )}
+        </fieldset>
 
         <ul>
           {loaded.rows.map((row) => (

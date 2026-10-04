@@ -23,6 +23,9 @@ const REVOLUT = [
   'Pagamento con carta,Attuale,2026-09-03 09:00:00,,Sospeso Srl,-5.00,0.00,EUR,IN SOSPESO,607.79',
 ].join('\n');
 
+const REVOLUT_HEADER = REVOLUT.split(String.fromCharCode(10))[0] ?? '';
+const joinLines = (...parts: string[]) => parts.join(String.fromCharCode(10));
+
 const TR_HEADER =
   'datetime,"date","account_type","category","type","asset_class","name","symbol","shares","price","amount","fee","tax","currency","original_amount","original_currency","fx_rate","description","transaction_id","counterparty_name","counterparty_iban","payment_reference","mcc_code"';
 function trRow(fields: Record<string, string>): string {
@@ -131,6 +134,8 @@ async function importFile(
     fileHash: parsed.fileHash,
     rows: planned.plan.rows,
     dataset: data,
+    declaredMinor: planned.plan.endBalanceMinor,
+    anchorDate: planned.plan.anchorDate,
   });
   if (built.ok) await repo.save(built.changes);
   return { data: await repo.load(), summary: built };
@@ -176,6 +181,59 @@ describe('import di un estratto Revolut', () => {
       'mese-1-2.csv',
     );
     expect(overlap.data.transactions).toHaveLength(2);
+  });
+});
+
+const balanceOf = (data: Dataset, accountId: string) => {
+  const account = data.accounts.find((a) => a.id === accountId);
+  return (
+    (account?.opening_balance_minor ?? 0) +
+    data.transactions
+      .filter((t) => t.account_id === accountId)
+      .reduce((n, t) => n + t.amount_minor, 0)
+  );
+};
+
+describe('saldo ricavato dagli estratti (Revolut)', () => {
+  it('il saldo del conto diventa quello dell’estratto, senza averlo mai scritto', async () => {
+    const { repo, accountId } = await setup(); // conto creato con saldo 0 e apertura 2026-01-01
+    const { data } = await importFile(repo, accountId, 'revolut', REVOLUT, 'rev.csv');
+    // Ultima riga completata: saldo 612,79 € (la riga in sospeso non conta)
+    expect(balanceOf(data, accountId)).toBe(61279);
+    // Saldo iniziale ricavato: 612,79 + 9,31 + 9,31 = 631,41 €
+    expect(data.accounts[0]?.opening_balance_minor).toBe(63141);
+    expect(data.meta[`balance_anchored:${accountId}`]).toBe('1');
+  });
+
+  it('un secondo estratto coerente aggiorna il saldo da solo', async () => {
+    const { repo, accountId } = await setup();
+    await importFile(repo, accountId, 'revolut', REVOLUT, 'settembre.csv');
+    const next = [
+      REVOLUT.split('\n')[0],
+      // +50,00 € il 10/09 (saldo 662,79 €), −12,00 € il 12/09 (saldo 650,79 €)
+      'Trasferimento,Attuale,2026-09-10 10:00:00,2026-09-10 10:00:05,Da Mario Rossi,50.00,0.00,EUR,COMPLETATO,662.79',
+      'Pagamento con carta,Attuale,2026-09-12 10:00:00,2026-09-12 10:00:05,Negozio Due,-12.00,0.00,EUR,COMPLETATO,650.79',
+    ].join('\n');
+    const { data } = await importFile(repo, accountId, 'revolut', next, 'seconda-parte.csv');
+    expect(balanceOf(data, accountId)).toBe(65079);
+    // Il saldo iniziale non è cambiato: l'estratto era coerente
+    expect(data.accounts[0]?.opening_balance_minor).toBe(63141);
+  });
+
+  it('un estratto di un periodo precedente non cambia il saldo attuale e non viene rifiutato', async () => {
+    const { repo, accountId } = await setup(); // apertura 01/01/2026
+    await importFile(repo, accountId, 'revolut', REVOLUT, 'settembre.csv');
+    const older = joinLines(
+      REVOLUT_HEADER,
+      // dicembre 2025: +100,00 € il 20/12; saldo dopo = 631,41 € (quello da cui parte il 2026)
+      'Trasferimento,Attuale,2025-12-20 10:00:00,2025-12-20 10:00:05,Da Mario Rossi,100.00,0.00,EUR,COMPLETATO,631.41',
+    );
+    const { data } = await importFile(repo, accountId, 'revolut', older, 'dicembre.csv');
+    expect(data.transactions).toHaveLength(3);
+    expect(data.accounts[0]?.opening_date).toBe('2025-12-20');
+    // Nuovo saldo iniziale: 631,41 − 100,00 = 531,41 €; il saldo attuale resta 612,79 €
+    expect(data.accounts[0]?.opening_balance_minor).toBe(53141);
+    expect(balanceOf(data, accountId)).toBe(61279);
   });
 });
 

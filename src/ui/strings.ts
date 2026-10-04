@@ -314,8 +314,11 @@ export const strings = {
     currency: 'Valuta',
     currencyLocked: 'La valuta non si cambia dopo la creazione del conto.',
     openingBalance: 'Saldo iniziale',
-    openingBalanceHint: 'Esempio: 1.500,00. Puoi lasciarlo vuoto (0).',
+    openingBalanceHint:
+      'Facoltativo: se lo lasci vuoto lo ricava l’importazione degli estratti conto (esempio: 1.500,00).',
     openingDate: 'Data del saldo iniziale',
+    openingDateHint:
+      'Si sposta da sola alla prima riga quando importi un estratto con movimenti precedenti.',
     balance: 'Saldo',
     archivedTitle: 'Conti archiviati',
     types: {
@@ -492,6 +495,23 @@ export const strings = {
       isin: 'ISIN non valido.',
       asset_class: 'Tipo di asset non valido.',
       transfer_category: 'Manca la categoria “Trasferimento”: creala in Impostazioni.',
+    },
+    balance: {
+      title: 'Saldo del conto',
+      label: 'Saldo a fine estratto (facoltativo)',
+      hintFromFile: 'Letto dal file: puoi correggerlo.',
+      hintManual:
+        'Scrivi il saldo che risulta alla fine dell’estratto: l’app ricava da sola il saldo iniziale del conto e lo tiene aggiornato a ogni estratto.',
+      invalid: 'Saldo non valido (esempio: 1.234,56).',
+      backdated: (date: string) =>
+        `L’estratto ha movimenti precedenti all’apertura del conto: l’apertura passa al ${date}.`,
+      after: (amount: string) => `Dopo l’importazione il saldo del conto sarà ${amount}.`,
+      matches: 'Il saldo torna con i movimenti già registrati.',
+      mismatch: (difference: string) =>
+        `Il saldo dell’estratto differisce di ${difference} da quello calcolato dai movimenti già registrati: forse manca un estratto o qualche movimento. Confermando, il saldo si riallinea comunque all’estratto.`,
+      openingDerived: (opening: string) => `Saldo iniziale del conto ricavato: ${opening}.`,
+      notAnchored:
+        'Senza saldo a fine estratto, il saldo del conto cambia solo della somma dei movimenti importati.',
     },
     fixRows: (count: number) =>
       count === 1

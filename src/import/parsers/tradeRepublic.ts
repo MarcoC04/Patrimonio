@@ -132,6 +132,7 @@ export const tradeRepublicParser: StatementParser = {
           .join(' – '),
         externalId: cell(cells, header, 'transaction_id') || null,
         trade,
+        balanceMinor: null,
         warnings,
       });
     }

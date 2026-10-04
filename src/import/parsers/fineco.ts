@@ -67,6 +67,7 @@ export const finecoParser: StatementParser = {
         rawDescription: [short, full].filter((part) => part !== '').join(' – '),
         externalId: null,
         trade: null,
+        balanceMinor: null,
         warnings,
       });
     }
