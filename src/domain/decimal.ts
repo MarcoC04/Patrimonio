@@ -66,6 +66,18 @@ export function formatDecimalPlain(value: string): string {
   return new D(value).toFixed().replace('.', ',');
 }
 
+/**
+ * Numero scritto in modo "tecnico" (come lo salva Excel: punto decimale, eventuale notazione
+ * scientifica, qualche cifra di rumore in coda) → stringa decimale canonica con al massimo
+ * `maxDecimals` decimali. Null se non è un numero. Accetta anche il segno.
+ */
+export function toPlainDecimal(raw: string, maxDecimals = 8): string | null {
+  const text = raw.trim();
+  if (!/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(text)) return null;
+  const value = new D(text).toDecimalPlaces(maxDecimals, Decimal.ROUND_HALF_UP);
+  return value.isZero() ? '0' : value.toFixed();
+}
+
 export function isDecimal(value: string): boolean {
   return /^\d+(\.\d+)?$/.test(value);
 }

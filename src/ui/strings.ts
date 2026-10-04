@@ -460,6 +460,19 @@ export const strings = {
       invalidWrite: (table: string, columns: string) =>
         `Dati da salvare non validi (scheda "${table}", colonna ${columns}): nulla è stato scritto.`,
     },
+    import: {
+      notXlsx: 'Il file non è un Excel (.xlsx) valido.',
+      noSheet: 'Nel file Excel non c’è nessun foglio da leggere.',
+      tooBig: 'Il file è troppo grande per essere letto.',
+      unsupportedCompression: 'Il file Excel usa una compressione non supportata.',
+      noDecompression:
+        'Questo browser non può aprire i file Excel: aggiorna il sistema (iOS 16.4 o successivo) oppure usa un file CSV.',
+      notText: 'Il file non è un testo CSV leggibile.',
+      empty: 'Il file è vuoto: nessuna riga da importare.',
+      missingColumns: (columns: string, format: string) =>
+        `Nel file mancano le colonne: ${columns}. Hai scelto il formato giusto (${format}) per questo conto?`,
+      noRows: 'Nel file non ci sono righe di movimenti da importare.',
+    },
     scriptOther: (code: string) => `Errore dello script (${code}).`,
     fxOutdated:
       'Per usare conti in valuta estera serve la versione 3 dello script: incolla l’ultimo Code.gs, autorizza l’accesso a servizi esterni e modifica la distribuzione con “Nuova versione”.',

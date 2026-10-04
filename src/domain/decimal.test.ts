@@ -9,6 +9,7 @@ import {
   parseDecimal,
   subtractDecimals,
   sumDecimals,
+  toPlainDecimal,
 } from './decimal';
 import { MoneyError } from './money';
 
@@ -57,6 +58,28 @@ describe('parseDecimal', () => {
   it('il massimo di decimali è regolabile', () => {
     expect(parseDecimal('1,234', 2)).toBeNull();
     expect(parseDecimal('1,23', 2)).toBe('1.23');
+  });
+});
+
+describe('toPlainDecimal (numeri come li salva Excel)', () => {
+  it.each([
+    ['329.73', '329.73'],
+    ['329.73000000000002', '329.73'], // rumore da virgola mobile: 8 decimali al massimo
+    ['-25.5', '-25.5'],
+    ['1E-3', '0.001'], // notazione scientifica
+    ['1.5E+3', '1500'],
+    ['46295', '46295'],
+    ['0.0000000001', '0'], // sotto la precisione: zero, senza "-0"
+    ['-0.0000000001', '0'],
+    ['.5', '0.5'],
+    ['7.', '7'],
+    ['  12  ', '12'],
+  ])('"%s" → "%s"', (raw, expected) => {
+    expect(toPlainDecimal(raw)).toBe(expected);
+  });
+
+  it.each([[''], ['abc'], ['1,5'], ['1.2.3'], ['--1'], ['e5']])('rifiuta "%s"', (raw) => {
+    expect(toPlainDecimal(raw)).toBeNull();
   });
 });
 
