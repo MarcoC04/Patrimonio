@@ -90,6 +90,14 @@ export const strings = {
     testOk: (version: number) => `Collegamento riuscito (versione dello script: ${version}).`,
   },
 
+  about: {
+    title: 'Versione e aggiornamenti',
+    version: (id: string) => `Versione dell’app in uso: ${id}`,
+    check: 'Cerca aggiornamenti',
+    checking: 'Controllo in corso…',
+    checked: 'Controllo eseguito: se c’è una versione nuova l’app si ricarica da sola.',
+  },
+
   pin: {
     title: 'Blocco con PIN',
     notice:

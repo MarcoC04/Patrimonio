@@ -33,6 +33,8 @@ jobs:
           # L'indirizzo dello script finisce nel bundle pubblico: da solo non dà accesso ai dati,
           # serve anche la chiave segreta, che NON è mai nel repository né nel bundle.
           VITE_SCRIPT_URL: ${{ vars.VITE_SCRIPT_URL }}
+          # Identifica la versione pubblicata (si vede in Impostazioni): serve a capire se il telefono è aggiornato.
+          VITE_BUILD_ID: ${{ github.sha }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

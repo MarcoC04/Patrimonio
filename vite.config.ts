@@ -38,6 +38,8 @@ export default defineConfig({
     },
     VitePWA({
       registerType: 'autoUpdate',
+      // La registrazione la fa src/app/updates.ts (ricarica la pagina quando c'è una versione nuova).
+      injectRegister: false,
       manifest: {
         name: 'Patrimonio',
         short_name: 'Patrimonio',

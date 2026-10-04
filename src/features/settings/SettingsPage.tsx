@@ -2,6 +2,7 @@ import { strings } from '../../ui/strings';
 import { AccountsCard } from '../accounts/AccountsCard';
 import { CategoriesCard } from '../categories/CategoriesCard';
 import { DataGate } from '../DataGate';
+import { AboutCard } from './AboutCard';
 import { ConnectionCard } from './ConnectionCard';
 import { ExportCard } from './ExportCard';
 import { PinCard } from './PinCard';
@@ -21,6 +22,7 @@ export function SettingsPage() {
       </DataGate>
       <PinCard />
       <ExportCard />
+      <AboutCard />
     </>
   );
 }
