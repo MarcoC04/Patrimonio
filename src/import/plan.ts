@@ -163,6 +163,7 @@ export function previewBalance(input: {
   rows: readonly PlannedRow[];
   declaredMinor: number | null;
   anchorDate: string | null;
+  initialMinor?: number | null;
 }): BalanceUpdate | null {
   const account = input.dataset.accounts.find((a) => a.id === input.accountId);
   if (!account) return null;
@@ -176,6 +177,7 @@ export function previewBalance(input: {
       .map((r) => ({ date: r.date, amountMinor: r.amountMinor })),
     declaredMinor: input.declaredMinor,
     anchorDate: input.anchorDate,
+    initialMinor: input.initialMinor ?? null,
     alreadyAnchored: input.dataset.meta[anchoredKey(input.accountId)] === '1',
   });
 }
@@ -192,6 +194,8 @@ export interface ImportInput {
   /** Saldo del conto a fine estratto (dal file o scritto dall'utente); null se non si conosce. */
   declaredMinor?: number | null;
   anchorDate?: string | null;
+  /** Saldo prima della prima riga dell'estratto (alternativa al saldo finale). */
+  initialMinor?: number | null;
 }
 
 export interface ImportSummary {
@@ -245,6 +249,7 @@ export function buildImport(
     rows: input.rows,
     declaredMinor: input.declaredMinor ?? null,
     anchorDate: input.anchorDate ?? null,
+    initialMinor: input.initialMinor ?? null,
   });
   const ctx = {
     accounts: dataset.accounts.map((a) =>

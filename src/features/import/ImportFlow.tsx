@@ -41,6 +41,10 @@ interface Loaded {
   declaredText: string;
   /** Il file riporta il saldo (il campo è già compilato). */
   balanceFromFile: boolean;
+  /** Il saldo scritto è quello a inizio o a fine estratto. */
+  balanceMode: 'start' | 'end';
+  /** Il conto ha già un saldo ricavato da estratti: il saldo prosegue da solo. */
+  alreadyAnchored: boolean;
   anchorDate: string | null;
 }
 
@@ -100,6 +104,10 @@ export function ImportFlow({ data, onDone }: Props) {
         declaredText:
           planned.plan.endBalanceMinor === null ? '' : formatPlain(planned.plan.endBalanceMinor),
         balanceFromFile: planned.plan.endBalanceMinor !== null,
+        // Senza saldo nel file e con conto nuovo si chiede quello iniziale (poi prosegue da solo).
+        balanceMode:
+          planned.plan.endBalanceMinor === null && !planned.plan.alreadyAnchored ? 'start' : 'end',
+        alreadyAnchored: planned.plan.alreadyAnchored,
         anchorDate: planned.plan.anchorDate,
       });
     } catch (e) {
@@ -150,14 +158,17 @@ export function ImportFlow({ data, onDone }: Props) {
   const toCheck = loaded?.rows.filter((r) => !r.duplicate && r.warnings.length > 0).length ?? 0;
 
   const declaredText = loaded?.declaredText.trim() ?? '';
-  const declaredMinor = declaredText === '' ? null : parseMoney(declaredText);
-  const declaredInvalid = declaredText !== '' && declaredMinor === null;
+  const typedMinor = declaredText === '' ? null : parseMoney(declaredText);
+  const declaredInvalid = declaredText !== '' && typedMinor === null;
+  const declaredMinor = loaded?.balanceMode === 'end' ? typedMinor : null;
+  const initialMinor = loaded?.balanceMode === 'start' ? typedMinor : null;
   const balance = loaded
     ? previewBalance({
         dataset: data,
         accountId,
         rows: loaded.rows,
         declaredMinor,
+        initialMinor,
         anchorDate: loaded.anchorDate,
       })
     : null;
@@ -190,6 +201,7 @@ export function ImportFlow({ data, onDone }: Props) {
       rows: loaded.rows,
       dataset: data,
       declaredMinor,
+      initialMinor,
       anchorDate: loaded.anchorDate,
     });
     if (!built.ok) {
@@ -266,10 +278,45 @@ export function ImportFlow({ data, onDone }: Props) {
 
         <fieldset className="mb-4 rounded-lg border border-line p-3">
           <legend className="px-1 text-sm font-semibold">{t.balance.title}</legend>
+          <div
+            role="radiogroup"
+            aria-label={t.balance.modeLabel}
+            className="mb-3 grid grid-cols-2 gap-2"
+          >
+            {(['start', 'end'] as const).map((mode) => (
+              <label
+                key={mode}
+                className={`flex min-h-11 cursor-pointer items-center justify-center rounded-lg border px-2 text-center text-sm font-medium ${
+                  loaded.balanceMode === mode
+                    ? 'border-accent bg-surface-2 text-accent underline decoration-2 underline-offset-4'
+                    : 'border-line bg-surface-2'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="import-balance-mode"
+                  checked={loaded.balanceMode === mode}
+                  onChange={() =>
+                    setLoaded((current) => (current ? { ...current, balanceMode: mode } : current))
+                  }
+                  className="sr-only"
+                />
+                {t.balance.modes[mode]}
+              </label>
+            ))}
+          </div>
           <Field
-            label={t.balance.label}
+            label={loaded.balanceMode === 'start' ? t.balance.labelStart : t.balance.label}
             htmlFor="import-end-balance"
-            hint={loaded.balanceFromFile ? t.balance.hintFromFile : t.balance.hintManual}
+            hint={
+              loaded.balanceFromFile && loaded.balanceMode === 'end'
+                ? t.balance.hintFromFile
+                : loaded.balanceMode === 'start'
+                  ? t.balance.hintStart
+                  : loaded.alreadyAnchored
+                    ? t.balance.hintContinues
+                    : t.balance.hintManual
+            }
           >
             <input
               id="import-end-balance"

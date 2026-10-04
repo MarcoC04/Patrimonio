@@ -38,7 +38,7 @@ export function HoldingForm({ data, onDone }: { data: Dataset; onDone: () => voi
     formRef.current?.scrollIntoView({ block: 'start' });
   }, []);
 
-  const brokerageAccounts = data.accounts.filter((a) => a.type === 'brokerage' && !a.is_archived);
+  const heldInAccounts = data.accounts.filter((a) => !a.is_archived);
 
   const submit = async () => {
     setBusy(true);
@@ -211,7 +211,7 @@ export function HoldingForm({ data, onDone }: { data: Dataset; onDone: () => voi
             className={inputClass}
           >
             <option value="">{t.noAccount}</option>
-            {brokerageAccounts.map((account) => (
+            {heldInAccounts.map((account) => (
               <option key={account.id} value={account.id}>
                 {account.name}
               </option>

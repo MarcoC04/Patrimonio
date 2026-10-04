@@ -218,7 +218,7 @@ export const strings = {
       purchasePrice: 'Prezzo pagato per unità',
       purchaseDate: 'Data dell’acquisto',
       fees: 'Commissioni pagate (facoltative)',
-      account: 'Conto di investimento (facoltativo)',
+      account: 'Conto in cui è detenuto (facoltativo)',
       noAccount: '— nessuno —',
       currentPrice: 'Prezzo attuale per unità (facoltativo)',
       currentPriceHint: 'Se lo lasci vuoto, si usa il prezzo pagato.',
@@ -232,7 +232,7 @@ export const strings = {
       unitPrice: 'Prezzo per unità',
       date: 'Data',
       fees: 'Commissioni (facoltative)',
-      account: 'Conto di investimento (facoltativo)',
+      account: 'Conto in cui è detenuto (facoltativo)',
       noAccount: '— nessuno —',
     },
     priceForm: {
@@ -498,6 +498,13 @@ export const strings = {
     },
     balance: {
       title: 'Saldo del conto',
+      modeLabel: 'Quale saldo conosci?',
+      modes: { start: 'Saldo a inizio estratto', end: 'Saldo a fine estratto' },
+      labelStart: 'Saldo del conto prima del primo movimento dell’estratto',
+      hintStart:
+        'Serve solo la prima volta: l’app parte da questo saldo, somma i movimenti e ti dice il risultato. Dai prossimi estratti il saldo prosegue da solo.',
+      hintContinues:
+        'Facoltativo: senza, il saldo prosegue da quello degli estratti precedenti sommando i movimenti.',
       label: 'Saldo a fine estratto (facoltativo)',
       hintFromFile: 'Letto dal file: puoi correggerlo.',
       hintManual:

@@ -118,6 +118,7 @@ async function importFile(
   parserId: ParserId,
   text: string,
   filename: string,
+  initialMinor: number | null = null,
 ): Promise<{ data: Dataset; summary: ReturnType<typeof buildImport> }> {
   const data = await repo.load();
   const parsed = await processStatement(new TextEncoder().encode(text), parserId);
@@ -136,6 +137,7 @@ async function importFile(
     rows: planned.plan.rows,
     dataset: data,
     declaredMinor: planned.plan.endBalanceMinor,
+    initialMinor,
     anchorDate: planned.plan.anchorDate,
   });
   if (built.ok) await repo.save(built.changes);
@@ -453,5 +455,49 @@ describe('annulla importazione', () => {
     await importFile(repo, accountId, 'revolut', REVOLUT, 'rev.csv');
     const { batchId } = await undoLatest(repo);
     expect(buildUndo(await repo.load(), batchId)).toEqual({ ok: false, issue: 'not_found' });
+  });
+});
+
+describe('Trade Republic: saldo iniziale scritto dall’utente', () => {
+  it('parte dal saldo iniziale, somma i movimenti e il saldo prosegue da solo', async () => {
+    const { repo, accountId } = await setup();
+    // Saldo iniziale 1.000,00 €. Movimenti del file: interessi +21,13, acquisto −101,00,
+    // vendita +41,00 → netto −38,87 → saldo finale 961,13 €
+    const { data } = await importFile(
+      repo,
+      accountId,
+      'trade_republic',
+      TRADE_REPUBLIC,
+      'tr.csv',
+      100000,
+    );
+    expect(data.accounts[0]?.opening_balance_minor).toBe(100000);
+    expect(balanceOf(data, accountId)).toBe(96113);
+    expect(data.meta[`balance_anchored:${accountId}`]).toBe('1');
+
+    // Mese dopo, senza scrivere nessun saldo: +50,00 € di interessi → 1.011,13 €
+    const next = joinLines(
+      TR_HEADER,
+      trRow({
+        date: '2026-10-01',
+        category: 'CASH',
+        type: 'INTEREST_PAYMENT',
+        amount: '50.00',
+        currency: 'EUR',
+        description: 'Interessi di prova',
+        transaction_id: 'tx-int-2',
+      }),
+    );
+    const second = await importFile(repo, accountId, 'trade_republic', next, 'tr-ottobre.csv');
+    expect(balanceOf(second.data, accountId)).toBe(101113);
+    expect(second.data.accounts[0]?.opening_balance_minor).toBe(100000); // invariato
+  });
+
+  it('annullare l’import riporta il conto al saldo precedente', async () => {
+    const { repo, accountId } = await setup();
+    await importFile(repo, accountId, 'trade_republic', TRADE_REPUBLIC, 'tr.csv', 100000);
+    const { data } = await undoLatest(repo);
+    expect(data.accounts[0]?.opening_balance_minor).toBe(0);
+    expect(data.transactions).toHaveLength(0);
   });
 });

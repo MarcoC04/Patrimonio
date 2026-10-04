@@ -30,6 +30,11 @@ export interface BalanceInput {
   /** Saldo a fine estratto e giorno a cui si riferisce; null se non si conosce. */
   declaredMinor: number | null;
   anchorDate: string | null;
+  /**
+   * In alternativa al saldo finale: saldo del conto PRIMA della prima riga dell'estratto
+   * (lo scrive l'utente quando il file non riporta alcun saldo, es. Trade Republic).
+   */
+  initialMinor?: number | null;
   /** Il saldo iniziale è già stato ricavato da un estratto precedente. */
   alreadyAnchored: boolean;
 }
@@ -56,6 +61,7 @@ export interface BalanceUpdate {
 
 export function computeBalanceUpdate(input: BalanceInput): BalanceUpdate {
   const { account, existing, added, declaredMinor, anchorDate, alreadyAnchored } = input;
+  const initialMinor = input.initialMinor ?? null;
   const known = alreadyAnchored || account.opening_balance_minor !== 0;
 
   const addedDates = added.map((m) => m.date).filter(isIsoDate);
@@ -86,6 +92,13 @@ export function computeBalanceUpdate(input: BalanceInput): BalanceUpdate {
     expectedMinor = opening + movements;
     differenceMinor = declaredMinor - expectedMinor;
     opening = declaredMinor - movements;
+    anchored = true;
+  } else if (initialMinor !== null && earliest !== null) {
+    // Saldo a inizio estratto: vale prima della prima riga, quindi conta solo ciò che c'era prima.
+    const movements = sumMinor(existing.filter((m) => m.date < earliest).map((m) => m.amountMinor));
+    expectedMinor = opening + movements;
+    differenceMinor = initialMinor - expectedMinor;
+    opening = initialMinor - movements;
     anchored = true;
   }
 

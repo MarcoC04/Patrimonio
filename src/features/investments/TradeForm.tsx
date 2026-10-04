@@ -44,7 +44,7 @@ export function TradeForm({
     formRef.current?.scrollIntoView({ block: 'start' });
   }, []);
 
-  const brokerageAccounts = data.accounts.filter((a) => a.type === 'brokerage' && !a.is_archived);
+  const heldInAccounts = data.accounts.filter((a) => !a.is_archived);
 
   const submit = async () => {
     setBusy(true);
@@ -155,7 +155,7 @@ export function TradeForm({
           className={inputClass}
         >
           <option value="">{t.noAccount}</option>
-          {brokerageAccounts.map((account) => (
+          {heldInAccounts.map((account) => (
             <option key={account.id} value={account.id}>
               {account.name}
             </option>

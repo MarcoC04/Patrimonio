@@ -193,6 +193,63 @@ describe('ancoraggio al saldo dell’estratto', () => {
   });
 });
 
+describe('saldo a inizio estratto', () => {
+  it('conto nuovo: il saldo iniziale scritto diventa quello del conto, poi si sommano i movimenti', () => {
+    // Iniziale 1.000,00; movimenti +21,13 −101,00 +41,00 = −38,87 → finale 961,13
+    const result = computeBalanceUpdate(
+      base({
+        added: [
+          { date: '2026-09-01', amountMinor: 2113 },
+          { date: '2026-09-02', amountMinor: -10100 },
+          { date: '2026-09-03', amountMinor: 4100 },
+        ],
+        initialMinor: 100000,
+      }),
+    );
+    expect(result.openingBalanceMinor).toBe(100000);
+    expect(result.openingDate).toBe('2026-09-01'); // retrodatata alla prima riga
+    expect(result.anchored).toBe(true);
+    expect(result.differenceMeaningful).toBe(false);
+    expect(result.openingBalanceMinor + 2113 - 10100 + 4100).toBe(96113);
+  });
+
+  it('conto già noto: conta solo ciò che precede la prima riga e segnala se non torna', () => {
+    // Iniziale noto 640,72 al 01/09, movimenti −9,31 (01/09) e −9,31 (02/09) → 622,10.
+    // Nuovo estratto dal 10/09, iniziale dichiarato 622,10: coerente (differenza 0).
+    const known = {
+      account: { opening_balance_minor: 64072, opening_date: '2026-09-01' },
+      existing: [
+        { date: '2026-09-01', amountMinor: -931 },
+        { date: '2026-09-02', amountMinor: -931 },
+      ],
+      added: [{ date: '2026-09-10', amountMinor: 5000 }],
+      alreadyAnchored: true,
+    };
+    const ok = computeBalanceUpdate(base({ ...known, initialMinor: 62210 }));
+    expect(ok.expectedMinor).toBe(62210);
+    expect(ok.differenceMinor).toBe(0);
+    expect(ok.changed).toBe(false);
+
+    // Se l'utente scrive 600,00 mancano 22,10 di movimenti: segnalato, e si riallinea.
+    const off = computeBalanceUpdate(base({ ...known, initialMinor: 60000 }));
+    expect(off.differenceMinor).toBe(-2210);
+    expect(off.differenceMeaningful).toBe(true);
+    expect(off.openingBalanceMinor + (-931 - 931)).toBe(60000);
+  });
+
+  it('il saldo a fine estratto, se c’è, ha la precedenza', () => {
+    const result = computeBalanceUpdate(
+      base({
+        added: [{ date: '2026-09-01', amountMinor: 1000 }],
+        declaredMinor: 5000,
+        anchorDate: '2026-09-01',
+        initialMinor: 99999,
+      }),
+    );
+    expect(result.openingBalanceMinor).toBe(4000);
+  });
+});
+
 describe('statementEndBalance', () => {
   it('prende il saldo dell’ultima riga completata; a pari data, l’ultima del file', () => {
     expect(
