@@ -15,16 +15,27 @@ export async function loadAll(
   repository: Repository,
   now: Date = new Date(),
 ): Promise<Dataset> {
-  const version = await client.ping();
+  // Verifica della versione e lettura partono insieme: ogni chiamata allo script costa 1-2 s e
+  // in sequenza si sommerebbero. La lettura non scrive nulla; prima di qualsiasi scrittura
+  // (creazione delle schede, semi) si aspetta comunque l'esito della verifica.
+  const pinged = client.ping();
+  const firstLoad = repository.load().then(
+    (loaded) => ({ ok: true as const, loaded }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
+
+  const version = await pinged;
   if (version < MIN_SCRIPT_VERSION) {
     throw new ScriptError('outdated', strings.errors.scriptOutdated(version, MIN_SCRIPT_VERSION));
   }
 
   let data: Dataset;
-  try {
-    data = await repository.load();
-  } catch (error) {
+  const first = await firstLoad;
+  if (first.ok) {
+    data = first.loaded;
+  } else {
     // Foglio nuovo (o scheda mancante): si creano schede e intestazioni, poi si rilegge.
+    const error = first.error;
     if (!(error instanceof ScriptError && error.code === 'missing_tab')) throw error;
     await repository.init();
     data = await repository.load();

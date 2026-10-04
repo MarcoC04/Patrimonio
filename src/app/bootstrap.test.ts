@@ -153,7 +153,7 @@ describe('loadAll', () => {
     expect(message).toContain('Code.gs');
     expect(message).toContain('versione 0'); // indica la versione trovata
     expect(message).toContain('VITE_SCRIPT_URL'); // e la causa più probabile: indirizzo non aggiornato
-    expect(requests).toBe(1); // solo il ping
+    expect(requests).toBe(2); // ping e lettura insieme; nessuna scrittura dopo l'errore
   });
 
   it('chiave sbagliata: l’errore dello script risale senza toccare il foglio', async () => {
