@@ -1,12 +1,8 @@
 import { applyChanges } from '../data/dataset';
 import type { ChangeSet, Dataset, Repository } from '../data/repository';
-import {
-  messageForScriptError,
-  MIN_SCRIPT_VERSION,
-  ScriptError,
-  type ScriptClient,
-} from '../data/scriptClient';
+import { MIN_SCRIPT_VERSION, ScriptError, type ScriptClient } from '../data/scriptClient';
 import { buildDefaultCategories } from '../domain/defaultCategories';
+import { strings } from '../ui/strings';
 
 /**
  * Sequenza di avvio: controlla la versione dello script, legge i dati (creando schede e
@@ -20,7 +16,7 @@ export async function loadAll(
 ): Promise<Dataset> {
   const version = await client.ping();
   if (version < MIN_SCRIPT_VERSION) {
-    throw new ScriptError('outdated', messageForScriptError('outdated'));
+    throw new ScriptError('outdated', strings.errors.scriptOutdated(version, MIN_SCRIPT_VERSION));
   }
 
   let data: Dataset;

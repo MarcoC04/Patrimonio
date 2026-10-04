@@ -278,8 +278,6 @@ export const strings = {
       bad_request: 'Richiesta non valida.',
       use_post: 'Richiesta non valida.',
       server: 'Errore dello script: riprova.',
-      outdated:
-        'Lo script del foglio è una versione vecchia: incolla di nuovo Code.gs in Apps Script e pubblica una “Nuova versione” della distribuzione.',
       no_key: 'Inserisci prima la chiave segreta.',
       not_found: 'Elemento da modificare non trovato nel foglio: ricarica i dati.',
       duplicate_id: 'Elemento già presente nel foglio: ricarica i dati.',
@@ -296,6 +294,11 @@ export const strings = {
         `Dati da salvare non validi (scheda "${table}", colonna ${columns}): nulla è stato scritto.`,
     },
     scriptOther: (code: string) => `Errore dello script (${code}).`,
+    scriptOutdated: (found: number, required: number) =>
+      `Lo script del foglio risponde con la versione ${found}, ma ne serve almeno la ${required}. ` +
+      'Controlla che l’indirizzo dello script (VITE_SCRIPT_URL, anche nella variabile di GitHub) sia quello della distribuzione aggiornata. ' +
+      'In Apps Script incolla l’ultimo Code.gs e, in Distribuisci > Gestisci distribuzioni, modifica la distribuzione esistente scegliendo “Nuova versione”: ' +
+      'se ne crei una nuova l’indirizzo cambia.',
     http: {
       429: 'Quota di Google superata: riprova tra poco.',
       server: 'Il servizio Google non risponde correttamente: riprova.',

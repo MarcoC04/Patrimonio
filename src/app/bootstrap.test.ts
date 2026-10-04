@@ -111,7 +111,10 @@ describe('loadAll', () => {
     const { client, repo } = setup(oldScript);
     const error = await loadAll(client, repo).catch((e: unknown) => e);
     expect(error).toMatchObject({ name: 'ScriptError', code: 'outdated' });
-    expect(String((error as Error).message)).toContain('Code.gs');
+    const message = String((error as Error).message);
+    expect(message).toContain('Code.gs');
+    expect(message).toContain('versione 0'); // indica la versione trovata
+    expect(message).toContain('VITE_SCRIPT_URL'); // e la causa più probabile: indirizzo non aggiornato
     expect(requests).toBe(1); // solo il ping
   });
 
