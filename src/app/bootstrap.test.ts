@@ -94,6 +94,44 @@ describe('loadAll', () => {
     expect(data.meta['defaults_seeded']).toBe('1');
   });
 
+  it('foglio nuovo: prepara anche le regole iniziali, una volta sola', async () => {
+    const { client, repo } = setup();
+    const first = await loadAll(client, repo);
+    expect(first.categorizationRules.length).toBeGreaterThan(100);
+    expect(first.meta['default_rules_seeded']).toBe('1');
+    const second = await loadAll(client, new ScriptRepository(client));
+    expect(second.categorizationRules).toHaveLength(first.categorizationRules.length);
+  });
+
+  it('chi aveva già le categorie (app vecchia) riceve le regole iniziali al primo avvio nuovo', async () => {
+    const { client, repo } = setup();
+    await repo.init();
+    await repo.load();
+    const stamp = '2026-01-01T00:00:00.000Z';
+    await repo.save({
+      categories: {
+        insert: [
+          {
+            id: 'c1',
+            created_at: stamp,
+            updated_at: stamp,
+            deleted: false,
+            name: 'Alimentari',
+            parent_id: null,
+            kind: 'expense',
+            color: '',
+            icon: '',
+          },
+        ],
+      },
+      meta: { defaults_seeded: '1' }, // già avviata con la versione precedente
+    });
+    const data = await loadAll(client, new ScriptRepository(client));
+    expect(data.categorizationRules.length).toBeGreaterThan(0);
+    // Solo regole per la categoria che esiste (le altre sono saltate)
+    expect(data.categorizationRules.every((r) => r.category_id === 'c1')).toBe(true);
+  });
+
   it('un avvio costa poche richieste: ping + lettura (+ seme solo la prima volta)', async () => {
     const { client, repo, requests, resetRequests } = setup();
     await loadAll(client, repo); // primo avvio: crea schede e categorie

@@ -29,7 +29,7 @@ export function MovementFilters({ filter, categories, onChange }: Props) {
 
   return (
     <section aria-label={strings.transactions.filters.title} className="mb-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 [&>*]:min-w-0">
         <Field label={strings.transactions.filters.from} htmlFor="filter-from">
           <input
             id="filter-from"

@@ -171,7 +171,12 @@ export function learnRule(
   }
 
   const timestamp = now.toISOString();
-  const priority = existing.reduce((max, rule) => Math.max(max, rule.priority), 0) + 1;
+  // Dopo le regole dell'utente ma prima di quelle iniziali, che hanno priorità 1000 e oltre:
+  // una correzione fatta a mano deve battere la regola predefinita.
+  const priority =
+    existing
+      .filter((rule) => rule.source !== 'default')
+      .reduce((max, rule) => Math.max(max, rule.priority), 0) + 1;
   return {
     ok: true,
     value: {

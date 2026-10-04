@@ -80,7 +80,13 @@ export async function buildPlan(
     if (row.trade) {
       categoryId = transferCategory?.id ?? null;
     } else {
-      const rule = findRule(dataset.categorizationRules, {
+      // Si considerano solo le regole la cui categoria è adatta al segno: un rimborso Amazon
+      // non deve fermarsi alla regola "amazon → Shopping" (una spesa).
+      const wantedKind = row.amountMinor < 0 ? 'expense' : 'income';
+      const usable = dataset.categorizationRules.filter(
+        (r) => dataset.categories.find((c) => c.id === r.category_id)?.kind === wantedKind,
+      );
+      const rule = findRule(usable, {
         description: row.description,
         rawDescription: row.rawDescription,
         amountMinor: row.amountMinor,

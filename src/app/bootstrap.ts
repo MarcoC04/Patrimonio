@@ -2,6 +2,7 @@ import { applyChanges } from '../data/dataset';
 import type { ChangeSet, Dataset, Repository } from '../data/repository';
 import { MIN_SCRIPT_VERSION, ScriptError, type ScriptClient } from '../data/scriptClient';
 import { buildDefaultCategories } from '../domain/defaultCategories';
+import { buildDefaultRules } from '../domain/defaultRules';
 import { strings } from '../ui/strings';
 
 /**
@@ -29,12 +30,28 @@ export async function loadAll(
     data = await repository.load();
   }
 
-  // Le categorie predefinite si creano una volta sola: se l'utente le cancella, non tornano.
-  if (data.meta['defaults_seeded'] === '1') return data;
-  const changes: ChangeSet = { meta: { defaults_seeded: '1' } };
-  if (data.categories.length === 0) {
-    changes.categories = { insert: buildDefaultCategories(now) };
+  // Categorie e regole predefinite si creano una volta sola: se l'utente le cancella, non tornano.
+  const seedCategories = data.meta['defaults_seeded'] !== '1';
+  const seedRules = data.meta['default_rules_seeded'] !== '1';
+  if (!seedCategories && !seedRules) return data;
+
+  const changes: ChangeSet = { meta: {} };
+  const meta: Record<string, string> = {};
+  let categories = data.categories;
+  if (seedCategories) {
+    meta['defaults_seeded'] = '1';
+    if (data.categories.length === 0) {
+      categories = buildDefaultCategories(now);
+      changes.categories = { insert: categories };
+    }
   }
+  if (seedRules) {
+    meta['default_rules_seeded'] = '1';
+    // Solo se non ci sono già regole: non si aggiungono a quelle scritte dall'utente.
+    const rules = data.categorizationRules.length === 0 ? buildDefaultRules(categories, now) : [];
+    if (rules.length > 0) changes.categorizationRules = { insert: rules };
+  }
+  changes.meta = meta;
   await repository.save(changes);
   return applyChanges(data, changes);
 }

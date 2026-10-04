@@ -2,7 +2,9 @@ import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useData } from '../../app/DataProvider';
 import type { Dataset } from '../../data/repository';
+import { normalizeDescription } from '../../domain/dedupe';
 import { formatMoney } from '../../domain/money';
+import { suggestPattern } from '../../domain/rules';
 import { buildImport, buildPlan, type PlannedRow, type RowIssue } from '../../import/plan';
 import { getParser, isParserId, PARSERS } from '../../import/parsers';
 import { readStatement } from '../../import/readStatement';
@@ -93,11 +95,30 @@ export function ImportFlow({ data, onDone }: Props) {
   };
 
   const updateRow = (key: number, patch: Partial<PlannedRow>) => {
-    setLoaded((current) =>
-      current
-        ? { ...current, rows: current.rows.map((r) => (r.key === key ? { ...r, ...patch } : r)) }
-        : current,
-    );
+    setLoaded((current) => {
+      if (!current) return current;
+      const source = current.rows.find((r) => r.key === key);
+      // Scegliendo una categoria la si propone anche alle altre righe simili ancora senza categoria.
+      const similarText =
+        source && !source.trade && typeof patch.categoryId === 'string'
+          ? suggestPattern(source.description)
+          : null;
+      const wanted = similarText === null ? '' : normalizeDescription(similarText);
+      const sameKind = (r: PlannedRow) => r.amountMinor < 0 === (source?.amountMinor ?? 0) < 0;
+      return {
+        ...current,
+        rows: current.rows.map((r) => {
+          if (r.key === key) return { ...r, ...patch };
+          const similar =
+            wanted !== '' &&
+            !r.trade &&
+            r.categoryId === null &&
+            sameKind(r) &&
+            normalizeDescription(r.description).includes(wanted);
+          return similar ? { ...r, categoryId: patch.categoryId ?? null } : r;
+        }),
+      };
+    });
     setProblems((current) => {
       if (!current.has(key)) return current;
       const next = new Map(current);

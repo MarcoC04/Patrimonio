@@ -45,4 +45,17 @@
     outline: 3px solid var(--color-warn);
     outline-offset: 2px;
   }
+
+  /* Safari su iPhone dà ai campi data una larghezza propria che sfora la colonna e li fa
+     sovrapporre al vicino: li si costringe a stare nella cella, con il testo a sinistra. */
+  input[type='date'] {
+    min-width: 0;
+    max-width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    text-align: left;
+  }
+  input[type='date']::-webkit-date-and-time-value {
+    text-align: left;
+  }
 }

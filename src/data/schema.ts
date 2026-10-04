@@ -37,7 +37,7 @@ export const INVESTMENT_TYPES = [
 export const PRICE_SOURCES = ['manual', 'api'] as const;
 export const RULE_FIELDS = ['description', 'amount', 'account'] as const;
 export const RULE_MATCH_TYPES = ['contains', 'starts_with', 'equals', 'regex'] as const;
-export const RULE_SOURCES = ['manual', 'learned'] as const;
+export const RULE_SOURCES = ['manual', 'learned', 'default'] as const;
 export const IMPORT_STATUSES = ['committed', 'discarded'] as const;
 
 export const metaTable = defineTable('_meta', {

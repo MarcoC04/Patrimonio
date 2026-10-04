@@ -78,7 +78,7 @@ export function ImportRowEditor({ row, categories, problems, onChange }: Props) 
         </ul>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 [&>*]:min-w-0">
         <div>
           <label htmlFor={`${idBase}-date`} className="mb-1 block text-xs font-medium">
             {strings.transactions.date}
@@ -146,7 +146,8 @@ export function ImportRowEditor({ row, categories, problems, onChange }: Props) 
                 categoryId: e.target.value === '' ? null : e.target.value,
                 // La categoria scelta a mano sostituisce quella proposta dalla regola.
                 ruleId: null,
-                learnPattern: null,
+                // "Ricorda" parte attivo: la regola proposta si può modificare o togliere.
+                learnPattern: e.target.value === '' ? null : suggestion,
               })
             }
             className={inputClass}
