@@ -227,7 +227,9 @@ portfolio_snapshots     (cache ricalcolabile per TWR e grafico)
 - Content Security Policy rigida (applicata alla build): nessuno script esterno; richieste di rete solo verso `script.google.com` e `script.googleusercontent.com`.
 - Dipendenze minime e versioni bloccate.
 - Nessun dato finanziario nei log, nelle analytics, nei messaggi di errore, nei fixture del repository.
-- PIN: hash salvato localmente solo per il blocco UI; auto-lock per inattività; al blocco i dati in memoria vengono scartati.
+- PIN: hash salvato localmente solo per il blocco UI (4-8 cifre, PBKDF2-SHA256 con sale casuale, 100.000 iterazioni; mai il PIN in chiaro); auto-lock per inattività (predefinito 5 minuti, scelta 1-30) e al ritorno da un lungo background; al blocco i dati in memoria vengono scartati (l'app e i dati non sono montati: dopo lo sblocco si rileggono dal foglio). L'app si apre sempre bloccata se il PIN è attivo.
+  - Dopo 5 tentativi sbagliati scatta un'attesa (30 s, poi 2 min dall'8°, 5 min dal 10°). Il contatore è in memoria: ricaricando la pagina riparte. Con 4-8 cifre un PIN è comunque forzabile da chi legge il localStorage: **è un blocco dell'interfaccia, non una protezione dei dati**.
+  - PIN dimenticato: la schermata di blocco offre "PIN dimenticato", che rimuove da quel dispositivo il PIN **e la chiave dello script** (serve reinserire la chiave, che solo il proprietario ha). I dati nel foglio non vengono toccati.
 - L'indirizzo dello script in variabile d'ambiente (`VITE_SCRIPT_URL`); la chiave segreta **mai** in repository, in `.env*` o nel bundle: si inserisce nell'app. Nessun segreto nel repository.
 
 ## 9. Backup

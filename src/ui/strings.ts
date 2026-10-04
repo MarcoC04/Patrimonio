@@ -90,6 +90,42 @@ export const strings = {
     testOk: (version: number) => `Collegamento riuscito (versione dello script: ${version}).`,
   },
 
+  pin: {
+    title: 'Blocco con PIN',
+    notice:
+      'Il PIN blocca solo l’interfaccia di questa app su questo dispositivo: non cifra né protegge i dati nel foglio Google.',
+    enabled: 'Il PIN è attivo.',
+    disabled: 'Il PIN non è attivo.',
+    newPin: 'Nuovo PIN (4-8 cifre)',
+    confirmPin: 'Ripeti il PIN',
+    currentPin: 'PIN attuale',
+    enable: 'Attiva il PIN',
+    change: 'Cambia PIN',
+    remove: 'Rimuovi il PIN',
+    lockNow: 'Blocca ora',
+    autolock: 'Blocco automatico dopo',
+    minutes: (count: number) => (count === 1 ? '1 minuto' : `${count} minuti`),
+    saved: 'PIN salvato.',
+    removed: 'PIN rimosso.',
+    issues: {
+      format: 'Il PIN deve avere da 4 a 8 cifre.',
+      mismatch: 'I due PIN non coincidono.',
+      wrongCurrent: 'PIN attuale errato.',
+      storage: 'Impossibile salvare il PIN su questo dispositivo.',
+    },
+    screen: {
+      title: 'App bloccata',
+      label: 'PIN',
+      unlock: 'Sblocca',
+      wrong: 'PIN errato.',
+      wait: (seconds: number) => `Troppi tentativi. Riprova tra ${seconds} secondi.`,
+      forgot: 'PIN dimenticato',
+      forgotWarning:
+        'Verranno rimossi da questo dispositivo il PIN e la chiave salvata: dovrai reinserire la chiave. I dati nel foglio non vengono toccati.',
+      forgotConfirm: 'Rimuovere il PIN e la chiave da questo dispositivo?',
+    },
+  },
+
   exportData: {
     title: 'Esporta i dati',
     description:

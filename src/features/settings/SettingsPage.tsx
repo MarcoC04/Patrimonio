@@ -4,6 +4,7 @@ import { CategoriesCard } from '../categories/CategoriesCard';
 import { DataGate } from '../DataGate';
 import { ConnectionCard } from './ConnectionCard';
 import { ExportCard } from './ExportCard';
+import { PinCard } from './PinCard';
 
 export function SettingsPage() {
   return (
@@ -18,6 +19,7 @@ export function SettingsPage() {
           </>
         )}
       </DataGate>
+      <PinCard />
       <ExportCard />
     </>
   );
