@@ -183,6 +183,10 @@ export class ScriptRepository implements Repository {
     };
   }
 
+  exportAll(): Promise<Record<string, string[][]>> {
+    return this.api.read(ALL_TABLES.map((t) => t.name));
+  }
+
   async save(changes: ChangeSet): Promise<void> {
     if (!this.validated) throw new DataError(strings.errors.data.notLoaded);
 

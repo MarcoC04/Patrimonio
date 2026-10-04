@@ -38,6 +38,11 @@ export interface Repository {
   load(): Promise<Dataset>;
   /** Scrive le modifiche in una sola richiesta. Richiede una `load` riuscita in questa sessione. */
   save(changes: ChangeSet): Promise<void>;
+  /**
+   * Valori grezzi di tutte le schede (intestazioni incluse, anche le righe cancellate
+   * logicamente), per l'esportazione. Una sola richiesta; non richiede una `load` e non scrive.
+   */
+  exportAll(): Promise<Record<string, string[][]>>;
 }
 
 /** Cancellazione logica: la riga resta nel foglio con `deleted` = true (va poi passata a `update`). */

@@ -3,6 +3,7 @@ import { AccountsCard } from '../accounts/AccountsCard';
 import { CategoriesCard } from '../categories/CategoriesCard';
 import { DataGate } from '../DataGate';
 import { ConnectionCard } from './ConnectionCard';
+import { ExportCard } from './ExportCard';
 
 export function SettingsPage() {
   return (
@@ -17,6 +18,7 @@ export function SettingsPage() {
           </>
         )}
       </DataGate>
+      <ExportCard />
     </>
   );
 }

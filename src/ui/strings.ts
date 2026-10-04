@@ -90,6 +90,17 @@ export const strings = {
     testOk: (version: number) => `Collegamento riuscito (versione dello script: ${version}).`,
   },
 
+  exportData: {
+    title: 'Esporta i dati',
+    description:
+      'Scarica una copia completa dei tuoi dati (anche le righe eliminate) sul dispositivo. Il file non passa da nessun server.',
+    json: 'Esporta JSON',
+    csv: 'Esporta CSV (zip)',
+    exporting: 'Esportazione in corso…',
+    done: (filename: string) => `Esportato: ${filename}`,
+    iosHint: 'Su iPhone il file si apre in anteprima: usa Condividi, poi “Salva su File”.',
+  },
+
   accounts: {
     title: 'Conti',
     empty: 'Nessun conto. Aggiungine uno per iniziare.',

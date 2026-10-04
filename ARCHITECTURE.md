@@ -234,7 +234,7 @@ portfolio_snapshots     (cache ricalcolabile per TWR e grafico)
 
 - **Apps Script** legato al Sheet, trigger settimanale: copia il file nella cartella Drive `Backup Patrimonio`, mantiene le ultime N copie (default 8), scrive l'esito in `_backup_log`.
 - Google Drive per desktop (Windows) sincronizza la cartella sul PC → l'utente la copia su NAS/disco esterno.
-- Lo script di backup si aggiunge allo stesso progetto Apps Script del foglio, a cura dell'utente (incollato a mano). Verrà fornito in Fase 1.
+- Lo script di backup è `apps-script/Backup.gs`: va incollato a mano come secondo file nello stesso progetto Apps Script del foglio (aggiungerlo non richiede di ripubblicare l'app web). Si esegue una volta `setupWeeklyBackup` (autorizzazione a Drive), che crea il trigger della domenica; `backupNow` fa una copia subito. Prende lo stesso lock dell'app web per non copiare mentre si scrive. Le copie in eccesso vanno nel cestino (non sono cancellate per sempre) e si toccano solo i file con prefisso `Patrimonio backup `.
 - Export manuale CSV/JSON dall'app.
 - Cronologia versioni nativa di Google Sheets come ulteriore rete di sicurezza.
 
