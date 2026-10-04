@@ -187,29 +187,36 @@ export interface CategorySpend {
   amountMinor: number;
 }
 
+type CategorizedTransaction = Pick<
+  Transaction,
+  'date' | 'amount_base_minor' | 'category_id' | 'transfer_group_id'
+>;
+
 /**
- * Spese per categoria in un intervallo di date (estremi inclusi), dal più alto al più basso.
- * Sono escluse le entrate e i giroconti. Usa lo snapshot in EUR.
+ * Totali per categoria in un intervallo di date (estremi inclusi), dal più alto al più basso.
+ * `direction`: 'expense' somma le uscite, 'income' le entrate; l'altra direzione e i giroconti
+ * sono esclusi. Usa lo snapshot in EUR; gli importi tornano sempre positivi.
  */
-export function spendByCategory(
-  transactions: readonly Pick<
-    Transaction,
-    'date' | 'amount_base_minor' | 'category_id' | 'transfer_group_id'
-  >[],
+function totalsByCategory(
+  transactions: readonly CategorizedTransaction[],
   categories: readonly Pick<Category, 'id' | 'parent_id'>[],
   range: { from: string; to: string },
+  direction: 'expense' | 'income',
 ): CategorySpend[] {
   const parentOf = new Map(categories.map((c) => [c.id, c.parent_id] as const));
   const totals = new Map<string | null, number[]>();
 
   for (const t of transactions) {
-    if (isTransfer(t) || t.amount_base_minor >= 0) continue;
+    if (isTransfer(t)) continue;
+    const isExpense = t.amount_base_minor < 0;
+    const isIncome = t.amount_base_minor > 0;
+    if (direction === 'expense' ? !isExpense : !isIncome) continue;
     if (t.date < range.from || t.date > range.to) continue;
     const own = t.category_id;
     // Una categoria sconosciuta (cancellata) conta come da categorizzare.
     const key = own !== null && parentOf.has(own) ? (parentOf.get(own) ?? own) : null;
     const list = totals.get(key) ?? [];
-    list.push(-t.amount_base_minor);
+    list.push(Math.abs(t.amount_base_minor));
     totals.set(key, list);
   }
 
@@ -219,6 +226,24 @@ export function spendByCategory(
       (a, b) =>
         b.amountMinor - a.amountMinor || String(a.categoryId).localeCompare(String(b.categoryId)),
     );
+}
+
+/** Spese per categoria (sottocategorie sommate nella madre); entrate e giroconti esclusi. */
+export function spendByCategory(
+  transactions: readonly CategorizedTransaction[],
+  categories: readonly Pick<Category, 'id' | 'parent_id'>[],
+  range: { from: string; to: string },
+): CategorySpend[] {
+  return totalsByCategory(transactions, categories, range, 'expense');
+}
+
+/** Entrate per categoria (sottocategorie sommate nella madre); spese e giroconti esclusi. */
+export function incomeByCategory(
+  transactions: readonly CategorizedTransaction[],
+  categories: readonly Pick<Category, 'id' | 'parent_id'>[],
+  range: { from: string; to: string },
+): CategorySpend[] {
+  return totalsByCategory(transactions, categories, range, 'income');
 }
 
 /** Le prime `max` voci e la somma di tutte le altre. */
@@ -236,4 +261,143 @@ export function limitSpend(
 export function percentOf(part: number, total: number): number {
   if (total <= 0) return 0;
   return Math.floor((part * 200 + total) / (total * 2));
+}
+
+// ---- Vista annuale (selettore dell'anno) ----
+
+/** Primo e ultimo giorno dell'anno. */
+export function yearRange(year: number): { from: string; to: string } {
+  return { from: `${year}-01-01`, to: `${year}-12-31` };
+}
+
+/**
+ * Anni selezionabili, in ordine crescente: quelli con movimenti o con un conto aperto, più
+ * l'anno in corso (che compare sempre, anche senza dati).
+ */
+export function availableYears(
+  transactions: readonly Pick<Transaction, 'date'>[],
+  accounts: readonly Pick<Account, 'opening_date'>[],
+  now: Date = new Date(),
+): number[] {
+  const years = new Set<number>([now.getFullYear()]);
+  for (const t of transactions) years.add(Number(t.date.slice(0, 4)));
+  for (const a of accounts) years.add(Number(a.opening_date.slice(0, 4)));
+  return [...years].filter((y) => Number.isInteger(y)).sort((a, b) => a - b);
+}
+
+type FlowTransaction = Pick<Transaction, 'date' | 'amount_base_minor' | 'transfer_group_id'>;
+
+export interface YearSummary {
+  incomeMinor: number;
+  expenseMinor: number;
+  /** Entrate − spese dell'anno (può essere negativo). */
+  savingsMinor: number;
+}
+
+/** Entrate, spese e risparmio dell'anno, in EUR e con i giroconti esclusi. */
+export function yearSummary(transactions: readonly FlowTransaction[], year: number): YearSummary {
+  const { from, to } = yearRange(year);
+  const months = monthlyFlow(
+    transactions.filter((t) => t.date >= from && t.date <= to),
+    year,
+  );
+  const incomeMinor = sumMinor(months.map((m) => m.incomeMinor));
+  const expenseMinor = sumMinor(months.map((m) => m.expenseMinor));
+  return { incomeMinor, expenseMinor, savingsMinor: incomeMinor - expenseMinor };
+}
+
+export interface MonthlyFlow {
+  month: YearMonth;
+  incomeMinor: number;
+  /** Spese come valore positivo. */
+  expenseMinor: number;
+  /** Flusso di cassa del mese: entrate − spese. */
+  netMinor: number;
+}
+
+/** I 12 mesi dell'anno con entrate, spese e flusso di cassa (giroconti esclusi, valori in EUR). */
+export function monthlyFlow(transactions: readonly FlowTransaction[], year: number): MonthlyFlow[] {
+  return Array.from({ length: 12 }, (_, index) => {
+    const month = `${year}-${String(index + 1).padStart(2, '0')}`;
+    const inMonth = transactions.filter((t) => !isTransfer(t) && t.date.startsWith(month));
+    const incomeMinor = sumMinor(
+      inMonth.filter((t) => t.amount_base_minor > 0).map((t) => t.amount_base_minor),
+    );
+    const expenseMinor = sumMinor(
+      inMonth.filter((t) => t.amount_base_minor < 0).map((t) => -t.amount_base_minor),
+    );
+    return { month, incomeMinor, expenseMinor, netMinor: incomeMinor - expenseMinor };
+  });
+}
+
+/**
+ * Le date da mostrare per un anno: fine di ogni mese, ma mai oltre oggi (il mese in corso termina
+ * oggi, i mesi futuri non ci sono). Un anno futuro non ha date.
+ */
+export function yearEndDates(year: number, now: Date = new Date()): string[] {
+  const today = todayIso(now);
+  const dates: string[] = [];
+  for (let m = 1; m <= 12; m++) {
+    const month = `${year}-${String(m).padStart(2, '0')}`;
+    if (`${month}-01` > today) break; // mese non ancora iniziato
+    const end = monthBounds(month).to;
+    dates.push(end > today ? today : end);
+  }
+  return dates;
+}
+
+/** Patrimonio netto a fine mese per l'anno scelto, in EUR (stessi tassi per tutti i punti). */
+export function netWorthYearSeries(
+  accounts: readonly AccountForTotals[],
+  transactions: readonly TransactionForTotals[],
+  year: number,
+  rates: RateMap = {},
+  now: Date = new Date(),
+): { points: LiquidityPoint[]; missing: string[] } {
+  const missing = new Set<string>();
+  const points = yearEndDates(year, now).map((date) => {
+    const total = netWorthBase(accounts, transactions, date, rates);
+    for (const currency of total.missing) missing.add(currency);
+    return { date, balanceMinor: total.totalMinor };
+  });
+  return { points, missing: [...missing].sort() };
+}
+
+export interface AssetShare {
+  type: Account['type'];
+  /** Saldo in centesimi EUR (sempre positivo). */
+  amountMinor: number;
+}
+
+/**
+ * Attività per tipo di conto alla data, in EUR, dal più alto al più basso. Si contano solo i saldi
+ * positivi (un conto in rosso non è un'attività) e si omettono i tipi senza saldo.
+ */
+export function assetsByAccountType(
+  accounts: readonly AccountForTotals[],
+  transactions: readonly TransactionForTotals[],
+  isoDate: string,
+  rates: RateMap = {},
+): { items: AssetShare[]; totalMinor: number; missing: string[] } {
+  const byType = new Map<Account['type'], number[]>();
+  const missing = new Set<string>();
+  for (const account of accounts) {
+    const value = balanceBaseAt(account, transactions, isoDate, rates);
+    if (value === null) {
+      missing.add(account.currency);
+      continue;
+    }
+    if (value <= 0) continue;
+    const list = byType.get(account.type) ?? [];
+    list.push(value);
+    byType.set(account.type, list);
+  }
+  const items = [...byType.entries()]
+    .map(([type, amounts]) => ({ type, amountMinor: sumMinor(amounts) }))
+    .sort((a, b) => b.amountMinor - a.amountMinor || a.type.localeCompare(b.type));
+  return {
+    items,
+    totalMinor: sumMinor(items.map((i) => i.amountMinor)),
+    missing: [...missing].sort(),
+  };
 }

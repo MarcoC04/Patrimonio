@@ -1,369 +1,158 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import { useData } from '../../app/DataProvider';
+import { useMemo, useState } from 'react';
 import type { Dataset } from '../../data/repository';
-import { todayIso } from '../../domain/dates';
+import { formatDateIt, todayIso } from '../../domain/dates';
 import {
-  currentMonth,
-  limitSpend,
-  liquidityBase,
-  liquiditySeries,
-  monthBounds,
-  monthEndDates,
+  assetsByAccountType,
+  availableYears,
+  incomeByCategory,
   netWorthBase,
-  percentOf,
-  shiftMonth,
   spendByCategory,
-  type RateMap,
-  type YearMonth,
+  yearEndDates,
+  yearRange,
+  yearSummary,
 } from '../../domain/dashboard';
-import { BASE_CURRENCY, formatMoney, sumMinor } from '../../domain/money';
+import { formatMoney } from '../../domain/money';
 import { Card, EmptyState } from '../../ui/Card';
-import { userMessage } from '../../ui/errors';
-import { formatEuroWhole, formatMonthLabel, formatMonthShort } from '../../ui/format';
-import { alertClass, secondaryButtonClass } from '../../ui/styles';
 import { strings } from '../../ui/strings';
 import { DataGate } from '../DataGate';
+import { categoryRows } from './categoryRows';
+import { CategoryBarsCard } from './CategoryBarsCard';
+import { DonutCard } from './DonutCard';
+import { FlowChart } from './FlowChart';
+import { KpiTile } from './KpiTile';
+import { NetWorthChart } from './NetWorthChart';
+import { RatesNotice } from './RatesNotice';
+import { useLatestRates } from './useLatestRates';
+import { YearSelector } from './YearSelector';
 
-const ACCENT = '#0f766e';
-const GRID = '#e2e8f0';
-const AXIS = '#94a3b8';
-
-/** Grafico con un messaggio al posto dei dati (assi e griglia reali, niente numeri inventati). */
-function EmptyChartFrame({ message, children }: { message: string; children: ReactElement }) {
-  return (
-    <div role="img" aria-label={message} className="relative h-48">
-      <ResponsiveContainer width="100%" height="100%">
-        {children}
-      </ResponsiveContainer>
-      <p className="absolute inset-0 grid place-items-center px-4 text-center text-sm text-slate-600">
-        {message}
-      </p>
-    </div>
-  );
-}
-
-/** Ultimi tassi di cambio per le valute dei conti (servono a rivalutare i saldi in EUR). */
-interface RatesState {
-  status: 'loading' | 'ready' | 'error';
-  rates: RateMap;
-  message: string | null;
-}
-
-function useLatestRates(accounts: Dataset['accounts']): RatesState {
-  const { latestRates } = useData();
-  const currencies = useMemo(
-    () => [...new Set(accounts.map((a) => a.currency))].filter((c) => c !== BASE_CURRENCY).sort(),
-    [accounts],
-  );
-  const [state, setState] = useState<RatesState>({
-    status: currencies.length === 0 ? 'ready' : 'loading',
-    rates: {},
-    message: null,
-  });
-
-  useEffect(() => {
-    if (currencies.length === 0) {
-      setState({ status: 'ready', rates: {}, message: null });
-      return;
-    }
-    let cancelled = false;
-    setState((previous) => ({ ...previous, status: 'loading' }));
-    latestRates(currencies).then(
-      (rates) => {
-        if (!cancelled) setState({ status: 'ready', rates, message: null });
-      },
-      (error: unknown) => {
-        if (!cancelled) setState({ status: 'error', rates: {}, message: userMessage(error) });
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [currencies, latestRates]);
-
-  return state;
-}
-
-function RatesNotice({ rates, missing }: { rates: RatesState; missing: readonly string[] }) {
-  if (rates.status === 'loading') {
-    return (
-      <p role="status" className="mt-2 text-xs text-slate-600">
-        {strings.dashboard.netWorth.loadingRates}
-      </p>
-    );
-  }
-  if (rates.status === 'error') {
-    return (
-      <p role="alert" className={`${alertClass} mt-2`}>
-        {rates.message}
-      </p>
-    );
-  }
-  if (missing.length > 0) {
-    return (
-      <p role="alert" className={`${alertClass} mt-2`}>
-        {strings.dashboard.netWorth.missingRates(missing.join(', '))}
-      </p>
-    );
-  }
-  return null;
-}
-
-function NetWorthCard({ data, today, rates }: { data: Dataset; today: string; rates: RatesState }) {
-  const netWorth = netWorthBase(data.accounts, data.transactions, today, rates.rates);
-  const liquidity = liquidityBase(data.accounts, data.transactions, today, rates.rates);
-
-  return (
-    <Card title={strings.dashboard.netWorth.title}>
-      {data.accounts.length === 0 ? (
-        <>
-          <p className="text-3xl font-bold text-slate-400" aria-hidden="true">
-            —
-          </p>
-          <EmptyState message={strings.dashboard.netWorth.empty} />
-        </>
-      ) : (
-        <>
-          <p className="text-3xl font-bold">{formatMoney(netWorth.totalMinor)}</p>
-          <p className="mt-1 text-sm text-slate-700">
-            {strings.dashboard.netWorth.liquidity}:{' '}
-            <strong>{formatMoney(liquidity.totalMinor)}</strong>
-          </p>
-          <RatesNotice rates={rates} missing={netWorth.missing} />
-          <p className="mt-2 text-xs text-slate-600">{strings.dashboard.netWorth.note}</p>
-        </>
-      )}
-    </Card>
-  );
-}
-
-const MAX_CATEGORIES = 6;
-
-function CategorySpendCard({ data }: { data: Dataset }) {
-  const thisMonth = currentMonth();
-  const [month, setMonth] = useState<YearMonth>(thisMonth);
-
-  const rows = useMemo(() => {
-    const spend = spendByCategory(data.transactions, data.categories, monthBounds(month));
-    const { top, othersMinor } = limitSpend(spend, MAX_CATEGORIES);
-    const names = new Map(data.categories.map((c) => [c.id, c.name] as const));
-    const named = top.map((item) => ({
-      key: item.categoryId ?? '__none__',
-      name: item.categoryId
-        ? (names.get(item.categoryId) ?? strings.dashboard.categorySpend.uncategorized)
-        : strings.dashboard.categorySpend.uncategorized,
-      amountMinor: item.amountMinor,
-    }));
-    if (othersMinor > 0) {
-      named.push({
-        key: '__others__',
-        name: strings.dashboard.categorySpend.others,
-        amountMinor: othersMinor,
-      });
-    }
-    return named;
-  }, [data.transactions, data.categories, month]);
-
-  const total = sumMinor(rows.map((r) => r.amountMinor));
-  const label = formatMonthLabel(month);
-
-  return (
-    <Card title={strings.dashboard.categorySpend.title}>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          className={secondaryButtonClass}
-          aria-label={strings.dashboard.categorySpend.previousMonth}
-          onClick={() => setMonth(shiftMonth(month, -1))}
-        >
-          ←
-        </button>
-        <p className="font-medium capitalize" aria-live="polite">
-          {label}
-        </p>
-        <button
-          type="button"
-          className={secondaryButtonClass}
-          aria-label={strings.dashboard.categorySpend.nextMonth}
-          disabled={month >= thisMonth}
-          onClick={() => setMonth(shiftMonth(month, 1))}
-        >
-          →
-        </button>
-      </div>
-
-      {rows.length === 0 ? (
-        <EmptyChartFrame message={strings.dashboard.categorySpend.empty}>
-          <BarChart data={[]} layout="vertical" margin={{ left: 8, right: 8 }}>
-            <CartesianGrid horizontal={false} stroke={GRID} />
-            <XAxis type="number" domain={[0, 100]} tick={false} stroke={AXIS} />
-            <YAxis type="category" dataKey="name" tick={false} stroke={AXIS} />
-          </BarChart>
-        </EmptyChartFrame>
-      ) : (
-        <>
-          <p className="mb-2 text-sm text-slate-700">
-            {strings.dashboard.categorySpend.total}: <strong>{formatMoney(total)}</strong>
-          </p>
-          <div
-            role="img"
-            aria-label={strings.dashboard.categorySpend.chartLabel(label, formatMoney(total))}
-            style={{ height: rows.length * 36 + 16 }}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={rows} layout="vertical" margin={{ left: 8, right: 16 }}>
-                <CartesianGrid horizontal={false} stroke={GRID} />
-                <XAxis type="number" hide />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={110}
-                  tick={{ fontSize: 12 }}
-                  stroke={AXIS}
-                />
-                <Tooltip formatter={(value) => formatMoney(Number(value))} />
-                <Bar dataKey="amountMinor" fill={ACCENT} isAnimationActive={false} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          {/* Gli stessi dati in testo: nome, importo e percentuale (non solo colore o lunghezza). */}
-          <ul className="mt-2 divide-y divide-slate-200 text-sm">
-            {rows.map((row) => (
-              <li key={row.key} className="flex items-baseline justify-between gap-3 py-1.5">
-                <span className="min-w-0 truncate">{row.name}</span>
-                <span className="shrink-0">
-                  <strong>{formatMoney(row.amountMinor)}</strong>{' '}
-                  <span className="text-slate-600">({percentOf(row.amountMinor, total)}%)</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </Card>
-  );
-}
-
-function LiquidityCard({ data, rates }: { data: Dataset; rates: RatesState }) {
-  const { series, missing } = useMemo(() => {
-    const result = liquiditySeries(
-      data.accounts,
-      data.transactions,
-      monthEndDates(new Date(), 12),
-      rates.rates,
-    );
-    return {
-      series: result.points.map((p) => ({ ...p, label: formatMonthShort(p.date) })),
-      missing: result.missing,
-    };
-  }, [data.accounts, data.transactions, rates.rates]);
-
-  const hasLiquidAccounts = data.accounts.some((a) => a.type !== 'brokerage');
-  const first = series[0];
-  const last = series[series.length - 1];
-
-  return (
-    <Card title={strings.dashboard.liquidity.title} className="md:col-span-2">
-      {!hasLiquidAccounts || !first || !last ? (
-        <EmptyChartFrame message={strings.dashboard.liquidity.empty}>
-          <LineChart data={[]} margin={{ left: 8, right: 8 }}>
-            <CartesianGrid stroke={GRID} />
-            <XAxis dataKey="label" tick={false} stroke={AXIS} />
-            <YAxis domain={[0, 100]} tick={false} stroke={AXIS} />
-          </LineChart>
-        </EmptyChartFrame>
-      ) : (
-        <>
-          <p className="mb-2 text-sm text-slate-700">
-            {strings.dashboard.liquidity.today}: <strong>{formatMoney(last.balanceMinor)}</strong>
-          </p>
-          <RatesNotice rates={rates} missing={missing} />
-          <div
-            role="img"
-            aria-label={strings.dashboard.liquidity.chartLabel(
-              formatMonthShort(first.date),
-              formatMonthShort(last.date),
-            )}
-            className="h-56"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={series} margin={{ left: 0, right: 12, top: 8 }}>
-                <CartesianGrid stroke={GRID} />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke={AXIS} />
-                <YAxis
-                  width={64}
-                  tick={{ fontSize: 12 }}
-                  stroke={AXIS}
-                  tickFormatter={(value) => formatEuroWhole(Number(value))}
-                />
-                <Tooltip formatter={(value) => formatMoney(Number(value))} />
-                <Line
-                  dataKey="balanceMinor"
-                  stroke={ACCENT}
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                  isAnimationActive={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <details className="mt-2">
-            <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">
-              {strings.dashboard.liquidity.showData}
-            </summary>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-slate-600">
-                  <th className="py-1 font-medium">{strings.dashboard.liquidity.date}</th>
-                  <th className="py-1 text-right font-medium">
-                    {strings.dashboard.liquidity.balance}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {series.map((point) => (
-                  <tr key={point.date} className="border-t border-slate-200">
-                    <td className="py-1">{point.label}</td>
-                    <td className="py-1 text-right">{formatMoney(point.balanceMinor)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </details>
-        </>
-      )}
-    </Card>
-  );
-}
+const MAX_DONUT_SLICES = 5;
+const MAX_BARS = 6;
 
 function BudgetsCard() {
   return (
-    <Card title={strings.dashboard.budgets.title}>
+    <Card title={strings.dashboard.budgets.title} centered>
       <EmptyState message={strings.dashboard.budgets.empty} />
     </Card>
   );
 }
 
 function DashboardView({ data }: { data: Dataset }) {
-  const today = todayIso();
+  const now = useMemo(() => new Date(), []);
+  const today = todayIso(now);
+  const currentYear = now.getFullYear();
+  const [year, setYear] = useState(currentYear);
   const rates = useLatestRates(data.accounts);
+
+  const years = useMemo(
+    () => availableYears(data.transactions, data.accounts, now),
+    [data.transactions, data.accounts, now],
+  );
+
+  // Patrimonio e attività si riferiscono alla fine dell'anno scelto (oggi, per l'anno in corso).
+  const asOf = yearEndDates(year, now).at(-1) ?? today;
+  const netWorth = netWorthBase(data.accounts, data.transactions, asOf, rates.rates);
+  const summary = useMemo(() => yearSummary(data.transactions, year), [data.transactions, year]);
+
+  const assets = useMemo(
+    () => assetsByAccountType(data.accounts, data.transactions, asOf, rates.rates),
+    [data.accounts, data.transactions, asOf, rates.rates],
+  );
+  const assetSlices = assets.items.map((item) => ({
+    key: item.type,
+    name: strings.accounts.types[item.type],
+    amountMinor: item.amountMinor,
+  }));
+
+  const incomeSlices = useMemo(
+    () =>
+      categoryRows(
+        incomeByCategory(data.transactions, data.categories, yearRange(year)),
+        data.categories,
+        MAX_DONUT_SLICES,
+      ),
+    [data.transactions, data.categories, year],
+  );
+  const expenseRows = useMemo(
+    () =>
+      categoryRows(
+        spendByCategory(data.transactions, data.categories, yearRange(year)),
+        data.categories,
+        MAX_BARS,
+      ),
+    [data.transactions, data.categories, year],
+  );
+
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <NetWorthCard data={data} today={today} rates={rates} />
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+        <div className="order-2 md:order-1">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <KpiTile
+              icon="netWorth"
+              label={strings.dashboard.kpi.netWorth}
+              value={formatMoney(netWorth.totalMinor)}
+              note={strings.dashboard.kpi.netWorthNote(formatDateIt(asOf))}
+            />
+            <KpiTile
+              icon="income"
+              label={strings.dashboard.kpi.income}
+              value={formatMoney(summary.incomeMinor)}
+              tone="income"
+            />
+            <KpiTile
+              icon="expenses"
+              label={strings.dashboard.kpi.expenses}
+              value={formatMoney(summary.expenseMinor)}
+              tone="expense"
+            />
+            <KpiTile
+              icon="savings"
+              label={strings.dashboard.kpi.savings}
+              value={formatMoney(summary.savingsMinor)}
+              tone={summary.savingsMinor >= 0 ? 'income' : 'expense'}
+            />
+          </div>
+          <RatesNotice rates={rates} missing={netWorth.missing} />
+        </div>
+        <div className="order-1 md:order-2 md:text-right">
+          <p className="mb-2 text-sm text-muted">{strings.dashboard.subtitle}</p>
+          <YearSelector
+            years={years}
+            selected={year}
+            currentYear={currentYear}
+            onSelect={setYear}
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <NetWorthChart data={data} year={year} rates={rates} />
+        <FlowChart data={data} year={year} />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <DonutCard
+          title={strings.dashboard.assets.title}
+          slices={assetSlices}
+          emptyMessage={strings.dashboard.assets.empty}
+          chartLabel={strings.dashboard.assets.chartLabel}
+          footer={<RatesNotice rates={rates} missing={assets.missing} />}
+        />
+        <DonutCard
+          title={strings.dashboard.incomeByCategory.title}
+          slices={incomeSlices}
+          emptyMessage={strings.dashboard.incomeByCategory.empty}
+          chartLabel={(total) => strings.dashboard.incomeByCategory.chartLabel(year, total)}
+        />
+        <CategoryBarsCard
+          title={strings.dashboard.expensesByCategory.title}
+          rows={expenseRows}
+          emptyMessage={strings.dashboard.expensesByCategory.empty}
+          chartLabel={(total) => strings.dashboard.expensesByCategory.chartLabel(year, total)}
+        />
+      </div>
+
       <BudgetsCard />
-      <CategorySpendCard data={data} />
-      <LiquidityCard data={data} rates={rates} />
     </div>
   );
 }

@@ -125,7 +125,7 @@ export function MovementForm({ data, editing, onDone }: Props) {
 
   if (accounts.length === 0) {
     return (
-      <div className="mb-4 rounded-lg border border-slate-300 p-3">
+      <div className="mb-4 rounded-lg border border-line p-3">
         <p className="mb-3 text-sm">{strings.transactions.noAccounts}</p>
         <div className="flex flex-wrap gap-2">
           <Link to="/impostazioni" className={`${buttonClass} no-underline`}>
@@ -144,7 +144,7 @@ export function MovementForm({ data, editing, onDone }: Props) {
   return (
     <form
       ref={formRef}
-      className="mb-4 rounded-lg border border-slate-300 p-3"
+      className="mb-4 rounded-lg border border-line p-3"
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
@@ -168,8 +168,8 @@ export function MovementForm({ data, editing, onDone }: Props) {
               key={value}
               className={`flex min-h-11 cursor-pointer items-center justify-center rounded-lg border px-2 text-sm font-medium ${
                 kind === value
-                  ? 'border-accent bg-teal-50 text-accent-strong underline decoration-2 underline-offset-4'
-                  : 'border-slate-400 bg-white'
+                  ? 'border-accent bg-surface-2 text-accent underline decoration-2 underline-offset-4'
+                  : 'border-line bg-surface-2'
               }`}
             >
               <input

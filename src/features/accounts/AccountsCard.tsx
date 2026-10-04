@@ -73,7 +73,7 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
 
   return (
     <form
-      className="mb-4 rounded-lg border border-slate-300 p-3"
+      className="mb-4 rounded-lg border border-line p-3"
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
@@ -187,11 +187,11 @@ function AccountRow({
   onAction: (action: 'archive' | 'restore' | 'delete') => void;
 }) {
   return (
-    <li className="flex flex-col gap-2 border-b border-slate-200 py-3 last:border-b-0">
+    <li className="flex flex-col gap-2 border-b border-line-soft py-3 last:border-b-0">
       <div className="flex items-baseline justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-semibold">{account.name}</p>
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-muted">
             {strings.accounts.types[account.type]}
             {account.institution && ` · ${account.institution}`}
           </p>
@@ -281,7 +281,7 @@ export function AccountsCard() {
       )}
 
       {accounts.length === 0 && editing === null && (
-        <p className="py-3 text-sm text-slate-600">{strings.accounts.empty}</p>
+        <p className="py-3 text-sm text-muted">{strings.accounts.empty}</p>
       )}
       {renderList(active)}
 

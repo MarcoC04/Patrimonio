@@ -40,6 +40,19 @@ export function formatMonthShort(isoDate: string): string {
 }
 
 /**
+ * Importo abbreviato per gli assi dei grafici: "800", "19,1K", "-2,5K". Solo visualizzazione:
+ * l'arrotondamento non entra mai nei calcoli.
+ */
+export function formatEuroCompact(minor: number): string {
+  const euros = Math.round(Math.abs(minor) / 100);
+  if (euros === 0) return '0';
+  const sign = minor < 0 ? '-' : '';
+  if (euros < 1000) return `${sign}${euros}`;
+  const thousands = Math.round(Math.abs(minor) / 10_000) / 10; // un decimale
+  return `${sign}${String(thousands).replace('.', ',')}K`;
+}
+
+/**
  * Euro interi con separatore it-IT ("1.200"), per le etichette degli assi.
  * Solo visualizzazione: l'arrotondamento non entra mai nei calcoli.
  */

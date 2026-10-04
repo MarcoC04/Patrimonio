@@ -66,7 +66,7 @@ function CategoryForm({ category, onDone }: { category: Category | null; onDone:
 
   return (
     <form
-      className="mb-4 rounded-lg border border-slate-300 p-3"
+      className="mb-4 rounded-lg border border-line p-3"
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
@@ -162,7 +162,7 @@ export function CategoriesCard() {
   const row = (category: Category, isChild: boolean) => (
     <li
       key={category.id}
-      className={`flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 py-2 last:border-b-0 ${isChild ? 'pl-6' : ''}`}
+      className={`flex flex-wrap items-center justify-between gap-2 border-b border-line-soft py-2 last:border-b-0 ${isChild ? 'pl-6' : ''}`}
     >
       <span className="min-w-0 truncate">
         {isChild && <span aria-hidden="true">↳ </span>}
@@ -201,7 +201,7 @@ export function CategoriesCard() {
         if (topLevel.length === 0) return null;
         return (
           <section key={kind} aria-label={strings.categories.kinds[kind]} className="mb-3">
-            <h3 className="mt-2 text-sm font-semibold text-slate-700">
+            <h3 className="mt-2 text-sm font-semibold text-muted">
               {strings.categories.kinds[kind]}
             </h3>
             <ul>

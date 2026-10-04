@@ -52,7 +52,7 @@ export function MovementFilters({ filter, categories, onChange }: Props) {
         </Field>
       </div>
 
-      <details className="mb-3 rounded-lg border border-slate-300 bg-white px-3">
+      <details className="mb-3 rounded-lg border border-line bg-surface-2 px-3">
         <summary className="min-h-11 cursor-pointer py-2.5 text-sm font-medium">
           {strings.transactions.filters.categories}: {summary}
         </summary>
@@ -60,7 +60,7 @@ export function MovementFilters({ filter, categories, onChange }: Props) {
           <label className={checkboxRow}>
             <input
               type="checkbox"
-              className="h-5 w-5"
+              className="h-5 w-5 accent-accent"
               checked={selected.includes(UNCATEGORIZED)}
               onChange={() => toggle(UNCATEGORIZED)}
             />
@@ -71,14 +71,14 @@ export function MovementFilters({ filter, categories, onChange }: Props) {
             if (list.length === 0) return null;
             return (
               <fieldset key={kind} className="mt-2">
-                <legend className="text-xs font-semibold uppercase text-slate-600">
+                <legend className="text-xs font-semibold uppercase text-muted">
                   {strings.categories.kinds[kind]}
                 </legend>
                 {list.map((category) => (
                   <label key={category.id} className={checkboxRow}>
                     <input
                       type="checkbox"
-                      className="h-5 w-5"
+                      className="h-5 w-5 accent-accent"
                       checked={selected.includes(category.id)}
                       onChange={() => toggle(category.id)}
                     />

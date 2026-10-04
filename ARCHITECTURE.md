@@ -217,13 +217,18 @@ portfolio_snapshots     (cache ricalcolabile per TWR e grafico)
 
 - Export dell'intero dataset in CSV (uno per tabella, zip) o JSON, in un click.
 
-### 7.8 Dashboard (definizioni, Fase 1)
+### 7.8 Dashboard (definizioni)
 
-- **Patrimonio** = somma dei saldi di tutti i conti alla data (saldo iniziale + movimenti fino a quel giorno; prima della data del saldo iniziale un conto vale 0). I giroconti tra conti non lo cambiano. Con gli investimenti (Fase 3) si aggiungerà il valore degli asset.
-- **Liquidità** = patrimonio dei soli conti non `brokerage`. Un giroconto verso un conto broker riduce la liquidità ma non il patrimonio.
-- **Andamento della liquidità**: saldo a fine mese degli ultimi 12 mesi; per il mese in corso, quello di oggi.
-- **Spese per categoria** (mese selezionabile): solo spese, **giroconti esclusi**, con le sottocategorie sommate nella categoria madre; senza categoria = "Da categorizzare". Primi 6 elementi + "Altre categorie". Ogni grafico ha gli stessi dati in testo (importo e percentuale): non ci si affida al solo colore.
-- Per ora tutto in EUR; con più valute si userà lo snapshot in EUR / il cambio (Fase 1, passo E).
+Struttura (ispirata a un riferimento scelto dal proprietario): in alto quattro indicatori e il **selettore dell'anno**; poi due grafici larghi; poi tre riquadri. Tutto si riferisce all'**anno scelto** (predefinito: quello in corso; gli anni offerti sono quelli con movimenti o conti aperti).
+
+- **Patrimonio netto** = somma dei saldi di tutti i conti, in EUR, **alla fine dell'anno scelto** (oggi per l'anno in corso): saldo iniziale + movimenti fino a quel giorno; prima della data del saldo iniziale un conto vale 0. I giroconti tra conti non lo cambiano. I conti in valuta estera usano l'ultimo tasso disponibile; senza tasso il conto è escluso e segnalato. Non esistono passività: i conti con saldo negativo riducono il patrimonio. Con gli investimenti (Fase 3) si aggiungerà il valore degli asset.
+- **Entrate / Spese / Risparmio** dell'anno: da `amount_base_minor` (EUR), **giroconti esclusi**; risparmio = entrate − spese (può essere negativo).
+- **Patrimonio netto per mese** (grafico ad area): saldo a fine mese dei mesi dell'anno, mai oltre oggi.
+- **Entrate, spese e flusso di cassa per mese**: barre per entrate e spese, linea per entrate − spese; solo i mesi già iniziati.
+- **Attività per tipo di conto** (ciambella): saldi positivi per tipo (conto corrente, conto deposito, contanti, investimenti), in EUR alla fine dell'anno scelto. Un conto in rosso non è un'attività e non compare. (Al posto delle passività del riferimento: il proprietario non ha mutui né carte di credito.)
+- **Entrate per categoria** (ciambella) e **Spese per categoria** (barre): sottocategorie sommate nella madre, senza categoria = "Da categorizzare", primi 5/6 elementi + "Altre categorie".
+- **Accessibilità**: ogni grafico ha un'etichetta testuale; le ciambelle hanno l'elenco con importo e percentuale; i grafici nel tempo hanno la tabella dei dati ("Mostra i dati"). Non ci si affida al solo colore.
+- **Tema scuro unico** (nessuna alternativa chiara): palette in `src/ui/theme.ts` e `src/index.css`, con un test che ne verifica contrasto (≥ 4,5:1 per i testi, ≥ 3:1 per bordi e grafici) e coerenza tra i due file.
 
 ## 8. Sicurezza
 
@@ -294,7 +299,7 @@ Obiettivo: verificare che la PWA legga e scriva il Sheet tramite lo script Apps 
 
 ### Fase 5 — Grafica e rifinitura
 
-- Design visuale e grafici rifiniti
+- **Anticipato su richiesta del proprietario** (prima di import e fasi 2-3): tema scuro e dashboard nello stile del riferimento fornito, applicati a tutte le schede (§7.8). Resta qui la rifinitura (animazioni, dettagli, controlli su dispositivi reali).
 - Revisione sicurezza, performance su mobile, accessibilità, documentazione
 
 ## 11. Setup ambiente (Windows)

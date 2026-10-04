@@ -32,7 +32,7 @@ export function AboutCard() {
         {busy ? strings.about.checking : strings.about.check}
       </button>
       {done && (
-        <p role="status" className="mt-3 text-sm text-slate-800">
+        <p role="status" className="mt-3 text-sm text-fg">
           {strings.about.checked}
         </p>
       )}

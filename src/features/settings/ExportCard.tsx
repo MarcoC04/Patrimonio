@@ -38,7 +38,7 @@ export function ExportCard() {
 
   return (
     <Card title={strings.exportData.title} className="mb-4">
-      <p className="mb-3 text-sm text-slate-700">{strings.exportData.description}</p>
+      <p className="mb-3 text-sm text-muted">{strings.exportData.description}</p>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -57,11 +57,11 @@ export function ExportCard() {
           {busy ? strings.exportData.exporting : strings.exportData.csv}
         </button>
       </div>
-      <p className="mt-2 text-xs text-slate-600">{strings.exportData.iosHint}</p>
+      <p className="mt-2 text-xs text-muted">{strings.exportData.iosHint}</p>
       {message && (
         <p
           role={message.isError ? 'alert' : 'status'}
-          className={`mt-3 text-sm ${message.isError ? alertClass : 'text-slate-800'}`}
+          className={`mt-3 text-sm ${message.isError ? alertClass : 'text-fg'}`}
         >
           {message.text}
         </p>

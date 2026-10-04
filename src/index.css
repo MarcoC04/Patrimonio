@@ -1,17 +1,48 @@
 @import 'tailwindcss';
 
+/*
+ * Colori del tema scuro. Gli stessi valori sono in src/ui/theme.ts (per i grafici): un test
+ * (theme.test.ts) controlla che coincidano e che il contrasto sia sufficiente.
+ */
 @theme {
-  --color-accent: #0f766e;
-  --color-accent-strong: #115e59;
+  --color-bg-top: #0b2f35;
+  --color-bg-mid: #052026;
+  --color-bg-bottom: #031418;
+  --color-surface: #0a2429;
+  --color-surface-2: #0f353a;
+  --color-line: #2fa57a;
+  --color-line-soft: #1b5150;
+  --color-fg: #e8f6f2;
+  --color-muted: #9bbab5;
+  --color-accent: #2bd985;
+  --color-accent-hover: #52e8a0;
+  --color-on-accent: #03241a;
+  --color-income: #4ade80;
+  --color-expense: #ff8aa0;
+  --color-warn: #fbbf24;
+  --color-info: #38bdf8;
 }
 
 @layer base {
+  html {
+    /* Controlli nativi (calendario, menu a tendina, tastiera) in versione scura. */
+    color-scheme: dark;
+    background-color: var(--color-bg-bottom);
+  }
+
   body {
-    @apply bg-slate-50 text-slate-900;
+    @apply text-fg;
+    min-height: 100dvh;
+    background: linear-gradient(
+      160deg,
+      var(--color-bg-top) 0%,
+      var(--color-bg-mid) 45%,
+      var(--color-bg-bottom) 100%
+    );
   }
 
   :focus-visible {
-    outline: 3px solid #f59e0b;
+    outline: 3px solid var(--color-warn);
     outline-offset: 2px;
   }
 }

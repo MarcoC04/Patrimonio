@@ -24,7 +24,7 @@ export function DataGate({
   return (
     <Card title={title}>
       {state.status === 'loading' && (
-        <p role="status" className="py-4 text-sm text-slate-700">
+        <p role="status" className="py-4 text-sm text-muted">
           {strings.common.loading}
         </p>
       )}

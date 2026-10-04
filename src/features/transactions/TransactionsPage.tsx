@@ -24,24 +24,24 @@ const PAGE_SIZE = 100;
 
 function Summary({ transactions }: { transactions: readonly Transaction[] }) {
   const totals = totalsMinor(transactions);
-  const stat = 'flex-1 rounded-lg border border-slate-300 bg-white p-2 text-center';
+  const stat = 'flex-1 rounded-lg border border-line bg-surface-2 p-2 text-center';
   return (
     <section aria-label={strings.transactions.summary.net} className="mb-4">
       <dl className="flex gap-2">
         <div className={stat}>
-          <dt className="text-xs text-slate-600">{strings.transactions.summary.income}</dt>
-          <dd className="font-semibold text-green-800">{formatMoney(totals.incomeMinor)}</dd>
+          <dt className="text-xs text-muted">{strings.transactions.summary.income}</dt>
+          <dd className="font-semibold text-income">{formatMoney(totals.incomeMinor)}</dd>
         </div>
         <div className={stat}>
-          <dt className="text-xs text-slate-600">{strings.transactions.summary.expense}</dt>
-          <dd className="font-semibold text-red-700">{formatMoney(totals.expenseMinor)}</dd>
+          <dt className="text-xs text-muted">{strings.transactions.summary.expense}</dt>
+          <dd className="font-semibold text-expense">{formatMoney(totals.expenseMinor)}</dd>
         </div>
         <div className={stat}>
-          <dt className="text-xs text-slate-600">{strings.transactions.summary.net}</dt>
+          <dt className="text-xs text-muted">{strings.transactions.summary.net}</dt>
           <dd className="font-semibold">{signedMoney(totals.netMinor)}</dd>
         </div>
       </dl>
-      <p className="mt-1 text-xs text-slate-600">{strings.transactions.summary.note}</p>
+      <p className="mt-1 text-xs text-muted">{strings.transactions.summary.note}</p>
     </section>
   );
 }
@@ -147,24 +147,24 @@ function TransactionsView({ data }: { data: Dataset }) {
               return (
                 <li
                   key={tx.id}
-                  className="flex flex-col gap-2 border-b border-slate-200 py-3 last:border-b-0"
+                  className="flex flex-col gap-2 border-b border-line-soft py-3 last:border-b-0"
                 >
                   <div className="flex items-baseline justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-medium">{tx.description || detail}</p>
-                      <p className="text-xs text-slate-600">
+                      <p className="text-xs text-muted">
                         {formatDateIt(tx.date)} · {accountNames.get(tx.account_id) ?? '?'} ·{' '}
                         {detail}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
                       <p
-                        className={`font-semibold ${tx.amount_minor < 0 ? 'text-red-700' : 'text-green-800'}`}
+                        className={`font-semibold ${tx.amount_minor < 0 ? 'text-expense' : 'text-income'}`}
                       >
                         {signedMoney(tx.amount_minor, tx.currency)}
                       </p>
                       {tx.currency !== 'EUR' && (
-                        <p className="text-xs text-slate-600">
+                        <p className="text-xs text-muted">
                           {strings.transactions.inEuro(signedMoney(tx.amount_base_minor))}
                         </p>
                       )}
@@ -188,7 +188,7 @@ function TransactionsView({ data }: { data: Dataset }) {
                       {strings.common.delete}
                     </button>
                     {isTransfer && (
-                      <span className="text-xs text-slate-600">
+                      <span className="text-xs text-muted">
                         {strings.transactions.transferEditHint}
                       </span>
                     )}

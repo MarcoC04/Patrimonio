@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatEuroWhole, formatMonthLabel, formatMonthShort, signedMoney } from './format';
+import {
+  formatEuroCompact,
+  formatEuroWhole,
+  formatMonthLabel,
+  formatMonthShort,
+  signedMoney,
+} from './format';
 
 const plain = (text: string) => text.replaceAll(' ', ' ');
 
@@ -24,6 +30,25 @@ describe('formatMonthLabel e formatMonthShort', () => {
   it('un testo non valido resta com’è', () => {
     expect(formatMonthLabel('boh')).toBe('boh');
     expect(formatMonthShort('boh')).toBe('boh');
+  });
+});
+
+describe('formatEuroCompact', () => {
+  it.each([
+    [0, '0'],
+    [80000, '800'], // 800 €
+    [99900, '999'], // 999 €
+    [100000, '1K'], // 1.000 €
+    [105000, '1,1K'], // 1.050 € → 1,05 arrotondato a 1,1
+    [1914300, '19,1K'], // 19.143 €
+    [2000000, '20K'],
+    [-250000, '-2,5K'], // −2.500 €
+    [-80000, '-800'],
+    [99950, '1K'], // 999,50 € arrotonda a 1.000 € e passa a "K"
+    [10, '0'], // 10 centesimi: niente "-0" né "0,0"
+    [-10, '0'],
+  ])('%i centesimi → "%s"', (minor, expected) => {
+    expect(formatEuroCompact(minor)).toBe(expected);
   });
 });
 

@@ -66,6 +66,7 @@ Usata da PC Windows (browser) e iPhone (PWA da Safari). UI in **italiano**.
 - Tutte le stringhe della UI in un unico punto (pronte per eventuale i18n), in italiano.
 - Formati: valuta e date secondo locale `it-IT`.
 - Accessibilità di base: contrasto, etichette, focus visibile. Le barre di budget non devono affidarsi solo al colore (mostrare anche percentuale/testo).
+- Tema: solo scuro. I colori si usano tramite i token di Tailwind (`bg-surface`, `text-fg`, `text-muted`, `border-line`, `text-accent`, `text-income`, `text-expense`…), non con colori fissi. Se si cambia la palette si aggiornano insieme `theme.ts` e `index.css`: un test controlla contrasto e coerenza.
 
 ## Struttura del repository (da rispettare)
 
@@ -115,3 +116,4 @@ Su Windows: gli script npm devono funzionare senza bash. Non usare comandi solo-
 - Esito parziale della Fase 0 registrato in `ARCHITECTURE.md` §10: resta da confermare su iPhone la persistenza della chiave.
 - Ordine deciso dal proprietario: prima l'app completa (Fasi 1-3: fondamenta, pianificazione, investimenti), poi l'import degli estratti conto (Fase 4), infine la grafica (Fase 5). Non anticipare import e design.
 - Approvato in anticipo: la shell (nav bassa/sidebar) e la dashboard come schermata iniziale fanno parte della Fase 1, con stati vuoti e mai dati inventati.
+- Design anticipato su richiesta del proprietario: **tema scuro unico** e dashboard nello stile di un riferimento (indicatori, selettore anno, ciambelle, barre). Colori solo da `src/ui/theme.ts` / `src/index.css` (mai colori fissi nelle classi). Ogni grafico ha un equivalente testuale.

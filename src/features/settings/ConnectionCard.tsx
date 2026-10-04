@@ -64,7 +64,7 @@ export function ConnectionCard() {
           {connection.message}
         </p>
       )}
-      <p role="status" className="mb-3 text-sm text-slate-700">
+      <p role="status" className="mb-3 text-sm text-muted">
         {hasKey ? strings.connection.keySaved : strings.connection.keyMissing}
       </p>
 
@@ -111,7 +111,7 @@ export function ConnectionCard() {
       {message && (
         <p
           role={message.isError ? 'alert' : 'status'}
-          className={`mt-3 text-sm ${message.isError ? alertClass : 'text-slate-800'}`}
+          className={`mt-3 text-sm ${message.isError ? alertClass : 'text-fg'}`}
         >
           {message.text}
         </p>

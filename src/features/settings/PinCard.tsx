@@ -82,7 +82,7 @@ export function PinCard() {
 
   return (
     <Card title={strings.pin.title} className="mb-4">
-      <p className="mb-3 text-sm text-slate-700">{strings.pin.notice}</p>
+      <p className="mb-3 text-sm text-muted">{strings.pin.notice}</p>
       <p role="status" className="mb-3 text-sm font-medium">
         {lock.hasPin ? strings.pin.enabled : strings.pin.disabled}
       </p>
@@ -124,14 +124,14 @@ export function PinCard() {
       {message && (
         <p
           role={message.isError ? 'alert' : 'status'}
-          className={`mt-3 text-sm ${message.isError ? alertClass : 'text-slate-800'}`}
+          className={`mt-3 text-sm ${message.isError ? alertClass : 'text-fg'}`}
         >
           {message.text}
         </p>
       )}
 
       {lock.hasPin && (
-        <div className="mt-4 border-t border-slate-200 pt-3">
+        <div className="mt-4 border-t border-line-soft pt-3">
           <Field label={strings.pin.autolock} htmlFor="pin-autolock">
             <select
               id="pin-autolock"

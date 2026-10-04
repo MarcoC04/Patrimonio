@@ -45,7 +45,7 @@ function PinScreen() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center p-6">
       <h1 className="mb-1 text-2xl font-bold">{strings.appTitle}</h1>
-      <p className="mb-6 text-slate-700">{strings.pin.screen.title}</p>
+      <p className="mb-6 text-muted">{strings.pin.screen.title}</p>
       <form
         onSubmit={(event) => {
           event.preventDefault();

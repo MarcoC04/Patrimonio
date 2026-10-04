@@ -28,33 +28,68 @@ export const strings = {
 
   dashboard: {
     title: 'Dashboard',
-    netWorth: {
-      title: 'Patrimonio totale',
-      empty: 'Aggiungi un conto per vedere il tuo patrimonio.',
-      liquidity: 'di cui liquidità',
-      note: 'Somma dei saldi di tutti i conti, in euro (i conti in valuta estera al cambio più recente). La liquidità esclude i conti broker.',
-      loadingRates: 'Calcolo dei cambi in corso…',
-      missingRates: (currencies: string) =>
+    subtitle: 'La tua situazione finanziaria',
+    year: {
+      groupLabel: 'Anno',
+      current: 'anno in corso',
+    },
+    kpi: {
+      netWorth: 'Patrimonio netto',
+      income: 'Entrate',
+      expenses: 'Spese',
+      savings: 'Risparmio',
+      netWorthNote: (when: string) => `al ${when}`,
+      noData: '—',
+    },
+    rates: {
+      loading: 'Calcolo dei cambi in corso…',
+      missing: (currencies: string) =>
         `Cambio non disponibile per: ${currencies}. Il totale non comprende questi conti.`,
     },
-    categorySpend: {
-      title: 'Spese del mese per categoria',
-      empty: 'Nessun dato: non ci sono ancora spese in questo mese.',
-      previousMonth: 'Mese precedente',
-      nextMonth: 'Mese successivo',
-      total: 'Totale spese',
+    netWorthChart: {
+      title: 'Patrimonio netto per mese',
+      empty: 'Nessun dato: aggiungi un conto per vedere l’andamento del patrimonio.',
+      chartLabel: (year: number) => `Patrimonio netto mese per mese nel ${year}`,
+      balance: 'Patrimonio',
+    },
+    flowChart: {
+      title: 'Entrate, spese e flusso di cassa per mese',
+      empty: 'Nessun dato: non ci sono movimenti in questo anno.',
+      chartLabel: (year: number) => `Entrate, spese e flusso di cassa mese per mese nel ${year}`,
+      income: 'Entrate',
+      expense: 'Spese',
+      flow: 'Flusso di cassa',
+    },
+    assets: {
+      title: 'Attività per tipo di conto',
+      empty: 'Nessun dato: nessun conto con un saldo positivo.',
+      total: 'Totale attività',
+      chartLabel: (total: string) => `Attività per tipo di conto: totale ${total}`,
+    },
+    incomeByCategory: {
+      title: 'Entrate per categoria',
+      empty: 'Nessun dato: non ci sono entrate in questo anno.',
+      chartLabel: (year: number, total: string) =>
+        `Entrate del ${year} per categoria: totale ${total}`,
+    },
+    expensesByCategory: {
+      title: 'Spese per categoria',
+      empty: 'Nessun dato: non ci sono spese in questo anno.',
+      chartLabel: (year: number, total: string) =>
+        `Spese del ${year} per categoria: totale ${total}`,
+    },
+    categories: {
+      total: 'Totale',
       others: 'Altre categorie',
       uncategorized: 'Da categorizzare',
-      chartLabel: (month: string, total: string) => `Spese di ${month}: totale ${total}`,
     },
-    liquidity: {
-      title: 'Andamento della liquidità',
-      empty: 'Nessun dato: servono almeno un conto e qualche movimento.',
-      today: 'Oggi',
+    table: {
       showData: 'Mostra i dati',
-      date: 'Data',
-      balance: 'Saldo',
-      chartLabel: (from: string, to: string) => `Liquidità da ${from} a ${to}`,
+      month: 'Mese',
+      netWorth: 'Patrimonio',
+      income: 'Entrate',
+      expense: 'Spese',
+      flow: 'Flusso',
     },
     budgets: {
       title: 'Budget',
@@ -166,9 +201,9 @@ export const strings = {
     archivedTitle: 'Conti archiviati',
     types: {
       checking: 'Conto corrente',
-      savings: 'Risparmio',
+      savings: 'Conto deposito',
       cash: 'Contanti',
-      brokerage: 'Broker',
+      brokerage: 'Investimenti',
     },
     cannotDelete: (count: number) =>
       `Il conto ha ${count} ${count === 1 ? 'movimento' : 'movimenti'}: non si può eliminare, ma puoi archiviarlo.`,

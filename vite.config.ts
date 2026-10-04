@@ -58,6 +58,8 @@ export default defineConfig({
     }),
   ],
   test: {
+    // Di norma Vitest svuota i CSS; index.css serve intero al test che confronta la palette.
+    css: { include: [/index\.css/] },
     environment: 'node',
     include: ['src/**/*.test.ts'],
   },
