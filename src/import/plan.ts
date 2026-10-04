@@ -38,6 +38,8 @@ export interface PlannedRow {
   externalId: string | null;
   hash: string;
   trade: ImportedRow['trade'];
+  /** Spostamento dei propri soldi: giroconto a un lato, escluso da entrate e spese. */
+  transfer: boolean;
 }
 
 export interface Plan {
@@ -85,7 +87,7 @@ export async function buildPlan(
 
     let categoryId: string | null = null;
     let ruleId: string | null = null;
-    if (row.trade) {
+    if (row.trade || row.transfer) {
       categoryId = transferCategory?.id ?? null;
     } else {
       // Si considerano solo le regole la cui categoria è adatta al segno: un rimborso Amazon
@@ -124,6 +126,7 @@ export async function buildPlan(
       externalId: row.externalId,
       hash: hashes[index] ?? '',
       trade: row.trade,
+      transfer: row.transfer ?? false,
     };
   });
 
@@ -283,7 +286,7 @@ export function buildImport(
         amountText: formatPlain(Math.abs(row.amountMinor)),
         date: row.date,
         accountId,
-        categoryId: row.trade ? null : row.categoryId,
+        categoryId: row.trade || row.transfer ? null : row.categoryId,
         description: row.description,
         notes: '',
       },
@@ -356,6 +359,14 @@ export function buildImport(
       // Lato "contanti" del giroconto verso l'investimento: l'altro lato è l'asset, non un conto.
       transaction.category_id = transferCategory.id;
       transaction.transfer_group_id = newId();
+    } else if (row.transfer) {
+      // Bonifico da/verso un altro conto proprio: giroconto a un lato (l'altro è in un altro estratto).
+      if (!transferCategory) {
+        issues.push({ key: row.key, issue: 'transfer_category' });
+        continue;
+      }
+      transaction.category_id = transferCategory.id;
+      transaction.transfer_group_id = newId();
     }
     transactions.push(transaction);
   }
@@ -366,14 +377,14 @@ export function buildImport(
   const touched = new Map<string, CategorizationRule>();
   const inserted: CategorizationRule[] = [];
   for (const row of included) {
-    if (row.ruleId && !row.trade) {
+    if (row.ruleId && !row.trade && !row.transfer) {
       const base =
         touched.get(row.ruleId) ?? dataset.categorizationRules.find((r) => r.id === row.ruleId);
       if (base) touched.set(base.id, registerHit(base, now));
     }
   }
   for (const row of included) {
-    if (!row.learnPattern || !row.categoryId || row.trade) continue;
+    if (!row.learnPattern || !row.categoryId || row.trade || row.transfer) continue;
     const known = [...dataset.categorizationRules.map((r) => touched.get(r.id) ?? r), ...inserted];
     const learned = learnRule(
       { pattern: row.learnPattern, categoryId: row.categoryId, accountId: null },

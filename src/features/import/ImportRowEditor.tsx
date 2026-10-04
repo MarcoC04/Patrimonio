@@ -28,7 +28,7 @@ export function ImportRowEditor({ row, categories, problems, onChange }: Props) 
     ...(row.duplicate ? [t.badges.duplicate] : []),
     ...row.warnings.map((warning) => t.badges[warning]),
   ];
-  const canLearn = !row.trade && row.categoryId !== null && row.ruleId === null;
+  const canLearn = !row.trade && !row.transfer && row.categoryId !== null && row.ruleId === null;
   const suggestion = suggestPattern(row.description);
 
   return (
@@ -50,6 +50,7 @@ export function ImportRowEditor({ row, categories, problems, onChange }: Props) 
           <p className="text-xs text-muted">
             {t.line(row.line)} · {signedMoney(row.amountMinor)}
           </p>
+          {row.transfer && <p className="text-xs text-muted">{t.transferNote}</p>}
           {row.trade && (
             <p className="text-xs text-muted">
               {t.investment(row.trade.type, row.trade.quantity)} — {t.investmentNote}
@@ -133,7 +134,7 @@ export function ImportRowEditor({ row, categories, problems, onChange }: Props) 
         />
       </div>
 
-      {!row.trade && (
+      {!row.trade && !row.transfer && (
         <div className="mt-2">
           <label htmlFor={`${idBase}-category`} className="mb-1 block text-xs font-medium">
             {t.category}

@@ -17,7 +17,9 @@ export type RowWarning =
   /** Acquisto o vendita con indicazioni contrastanti. */
   | 'unclear_direction'
   /** Importo nullo. */
-  | 'zero_amount';
+  | 'zero_amount'
+  /** Riga solo informativa (nessun movimento di denaro): da non importare. */
+  | 'informational';
 
 /** Acquisto o vendita di un titolo letto da un estratto (Trade Republic). */
 export interface ImportedTrade {
@@ -49,6 +51,11 @@ export interface ImportedRow {
   /** Identificativo assegnato dalla banca, se esiste (es. transaction_id di Trade Republic). */
   externalId: string | null;
   trade: ImportedTrade | null;
+  /**
+   * Spostamento dei propri soldi (es. bonifico da/verso un altro conto): si registra come
+   * giroconto a un lato, escluso da entrate e spese.
+   */
+  transfer?: boolean;
   /** Saldo del conto DOPO questa riga, se l'estratto lo riporta (Revolut: colonna Saldo). */
   balanceMinor: number | null;
   warnings: RowWarning[];

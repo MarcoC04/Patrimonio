@@ -13,8 +13,30 @@ import type { ImportedRow, ImportedTrade, ParseResult, StatementParser } from '.
  *   ricava dal tipo (BUY/SELL) e dal segno dell'importo; se discordano la riga è esclusa in anteprima.
  * - Le altre righe di liquidità (interessi, bonifici, carta) sono movimenti del conto.
  * - `transaction_id` serve a non importare mai due volte lo stesso movimento.
- * - Categorie diverse da CASH e TRADING (es. operazioni societarie) sono escluse in anteprima.
+ * - Categorie diverse da CASH e TRADING (es. DELIVERY: azioni regalate, operazioni societarie)
+ *   sono escluse in anteprima; STOCKPERK e MIGRATION sono solo informative.
+ * - Bonifici da/verso la banca (CUSTOMER_*, TRANSFER_*) sono giroconti: non contano come entrate.
  */
+
+/**
+ * Valori di `type` (categoria CASH) che sono spostamenti dei propri soldi tra banca e deposito.
+ * Elenco ricavato da progetti pubblici che leggono lo stesso CSV (Wealthfolio importer,
+ * tr-portfolio-visualizer): CUSTOMER_INBOUND, CUSTOMER_INPAYMENT, CUSTOMER_OUTBOUND_REQUEST,
+ * TRANSFER_INBOUND, TRANSFER_INSTANT_INBOUND, TRANSFER_DIRECT_DEBIT_INBOUND, TRANSFER_OUTBOUND,
+ * TRANSFER_INSTANT_OUTBOUND.
+ */
+const OWN_MONEY_TRANSFER = /^(CUSTOMER_(INBOUND|INPAYMENT|OUTBOUND_REQUEST)|TRANSFER_)/;
+
+/**
+ * Righe senza un movimento di denaro vero: STOCKPERK (l'acquisto corrispondente compare a parte)
+ * e MIGRATION (cambio tecnico di ISIN, effetto nullo).
+ */
+function isInformational(category: string, type: string): boolean {
+  return (
+    (category === 'CASH' && type === 'STOCKPERK') ||
+    (category === 'DELIVERY' && type === 'MIGRATION')
+  );
+}
 
 function parseTrade(
   cells: readonly string[],
@@ -103,10 +125,12 @@ export const tradeRepublicParser: StatementParser = {
         category === 'TRADING' ? parseTrade(cells, header, type, amount, fee) : null;
       const trade = parsedTrade?.trade ?? null;
       if (parsedTrade?.unclear) warnings.push('unclear_direction');
-      if (category !== 'CASH' && category !== 'TRADING') warnings.push('unknown_type');
+      const informational = isInformational(category, type);
+      if (informational) warnings.push('informational');
+      else if (category !== 'CASH' && category !== 'TRADING') warnings.push('unknown_type');
       // Una riga di trading senza quote e prezzo non è né un movimento di liquidità né un acquisto
       if (category === 'TRADING' && !trade) warnings.push('unknown_type');
-      if (net === 0) warnings.push('zero_amount');
+      if (net === 0 && !informational) warnings.push('zero_amount');
 
       const descriptionText = cell(cells, header, 'description');
       const name = cell(cells, header, 'name');
@@ -132,6 +156,7 @@ export const tradeRepublicParser: StatementParser = {
           .join(' – '),
         externalId: cell(cells, header, 'transaction_id') || null,
         trade,
+        transfer: category === 'CASH' && OWN_MONEY_TRANSFER.test(type),
         balanceMinor: null,
         warnings,
       });

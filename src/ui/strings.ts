@@ -462,6 +462,7 @@ export const strings = {
     line: (line: number) => `Riga ${line} del file`,
     investment: (type: 'buy' | 'sell', quantity: string) =>
       `${type === 'buy' ? 'Acquisto' : 'Vendita'} · ${quantity} quote`,
+    transferNote: 'Giroconto tra i tuoi conti: non conta come entrata o spesa.',
     investmentNote: 'Registrato negli Investimenti e come giroconto dal conto.',
     learn: 'Ricorda per i prossimi estratti',
     learnPattern: 'Se la descrizione contiene',
@@ -472,6 +473,7 @@ export const strings = {
       unknown_type: 'Tipo non riconosciuto',
       unclear_direction: 'Acquisto/vendita poco chiari',
       zero_amount: 'Importo zero',
+      informational: 'Solo informativa',
     },
     rowIssues: {
       amount: 'Importo non valido.',
