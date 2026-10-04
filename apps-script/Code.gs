@@ -10,9 +10,16 @@
  *   { key, action: 'ping' }
  *   { key, action: 'init',   tabs: { nomeScheda: [intestazioni...] } }
  *   { key, action: 'read',   tabs: [nomeScheda...] }
- *   { key, action: 'append', appends: [{ tab, headers, rows: [[celle...]...] }] }
+ *   { key, action: 'append', appends: [{ tab, headers, rows }] }
+ *   { key, action: 'write',  appends: [{ tab, headers, rows }], updates: [{ tab, headers, rows }] }
  * Risposta (sempre HTTP 200): { ok: true, data } oppure { ok: false, error: codice }.
  * Gli errori contengono solo un codice, mai dati del foglio.
+ *
+ * La PRIMA colonna di ogni scheda è la chiave univoca della riga (id, oppure key in _meta).
+ *  - append: aggiunge righe; rifiuta chiavi già presenti (duplicate_id).
+ *  - update: sostituisce l'intera riga con la stessa chiave; rifiuta chiavi inesistenti (not_found).
+ * Ogni richiesta è atomica: tutto viene validato prima di scrivere e l'esecuzione avviene sotto
+ * lock. Se qualcosa non torna, non viene scritto nulla.
  */
 
 var SECRET_PROPERTY = 'SECRET';
@@ -52,7 +59,13 @@ function handle_(request) {
     case 'ping':
       return { ok: true, data: {} };
     case 'read':
-      return { ok: true, data: read_(request.tabs) };
+      // Anche la lettura sotto lock: non si vede mai una scrittura a metà.
+      return {
+        ok: true,
+        data: withLock_(function () {
+          return read_(request.tabs);
+        }),
+      };
     case 'init':
       return {
         ok: true,
@@ -64,7 +77,14 @@ function handle_(request) {
       return {
         ok: true,
         data: withLock_(function () {
-          return append_(request.appends);
+          return write_(request.appends, []);
+        }),
+      };
+    case 'write':
+      return {
+        ok: true,
+        data: withLock_(function () {
+          return write_(request.appends, request.updates);
         }),
       };
     default:
@@ -107,6 +127,18 @@ function asText_(range) {
   range.setNumberFormat('@');
 }
 
+/** Chiavi (prima colonna) delle righe di dati, nell'ordine del foglio: la riga i sta alla riga i+2. */
+function existingKeys_(sheet) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  return sheet
+    .getRange(2, 1, lastRow - 1, 1)
+    .getDisplayValues()
+    .map(function (row) {
+      return row[0];
+    });
+}
+
 function init_(tabs) {
   if (!tabs || typeof tabs !== 'object') fail_('bad_request');
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -146,38 +178,76 @@ function read_(tabs) {
   return result;
 }
 
-function append_(appends) {
-  if (!Array.isArray(appends) || appends.length === 0) fail_('bad_request');
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+/** Controlla forma e contenuto di un elemento { tab, headers, rows }; restituisce il foglio. */
+function checkItem_(ss, item) {
+  if (
+    !item ||
+    typeof item.tab !== 'string' ||
+    !isHeaders_(item.headers) ||
+    !Array.isArray(item.rows)
+  ) {
+    fail_('bad_request');
+  }
+  var sheet = ss.getSheetByName(item.tab);
+  if (!sheet) fail_('missing_tab');
+  if (!sameHeaders_(sheet, item.headers)) fail_('schema');
+  item.rows.forEach(function (row) {
+    if (!Array.isArray(row) || row.length !== item.headers.length) fail_('bad_request');
+    row.forEach(function (cell) {
+      if (typeof cell !== 'string') fail_('bad_request');
+    });
+    if (row[0] === '') fail_('bad_request'); // la chiave non può essere vuota
+  });
+  return sheet;
+}
 
-  // Validazione completa prima di scrivere qualsiasi cosa.
-  var plans = appends.map(function (item) {
-    if (
-      !item ||
-      typeof item.tab !== 'string' ||
-      !isHeaders_(item.headers) ||
-      !Array.isArray(item.rows)
-    ) {
-      fail_('bad_request');
-    }
-    var sheet = ss.getSheetByName(item.tab);
-    if (!sheet) fail_('missing_tab');
-    if (!sameHeaders_(sheet, item.headers)) fail_('schema');
+function planAppends_(ss, appends) {
+  return appends.map(function (item) {
+    var sheet = checkItem_(ss, item);
+    var seen = {};
+    existingKeys_(sheet).forEach(function (key) {
+      seen[key] = true;
+    });
     item.rows.forEach(function (row) {
-      if (!Array.isArray(row) || row.length !== item.headers.length) fail_('bad_request');
-      row.forEach(function (cell) {
-        if (typeof cell !== 'string') fail_('bad_request');
-      });
+      if (seen[row[0]] === true) fail_('duplicate_id');
+      seen[row[0]] = true;
     });
     return { sheet: sheet, columns: item.headers.length, rows: item.rows };
   });
+}
 
-  var counts = [];
-  plans.forEach(function (plan) {
-    if (plan.rows.length === 0) {
-      counts.push(0);
-      return;
-    }
+function planUpdates_(ss, updates) {
+  return updates.map(function (item) {
+    var sheet = checkItem_(ss, item);
+    var position = {};
+    existingKeys_(sheet).forEach(function (key, index) {
+      if (position[key] === undefined) position[key] = index + 2;
+    });
+    var targets = {};
+    var rows = item.rows.map(function (row) {
+      if (position[row[0]] === undefined) fail_('not_found');
+      if (targets[row[0]] === true) fail_('bad_request'); // stessa riga modificata due volte
+      targets[row[0]] = true;
+      return { at: position[row[0]], cells: row };
+    });
+    return { sheet: sheet, columns: item.headers.length, rows: rows };
+  });
+}
+
+function write_(appends, updates) {
+  var appendItems = appends === undefined ? [] : appends;
+  var updateItems = updates === undefined ? [] : updates;
+  if (!Array.isArray(appendItems) || !Array.isArray(updateItems)) fail_('bad_request');
+  if (appendItems.length + updateItems.length === 0) fail_('bad_request');
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // Validazione completa prima di scrivere qualsiasi cosa.
+  var appendPlans = planAppends_(ss, appendItems);
+  var updatePlans = planUpdates_(ss, updateItems);
+
+  var appended = appendPlans.map(function (plan) {
+    if (plan.rows.length === 0) return 0;
     var sheet = plan.sheet;
     var firstRow = sheet.getLastRow() + 1;
     var needed = firstRow + plan.rows.length - 1;
@@ -186,8 +256,18 @@ function append_(appends) {
     var range = sheet.getRange(firstRow, 1, plan.rows.length, plan.columns);
     asText_(range);
     range.setValues(plan.rows);
-    counts.push(plan.rows.length);
+    return plan.rows.length;
   });
+
+  var updated = updatePlans.map(function (plan) {
+    plan.rows.forEach(function (row) {
+      var range = plan.sheet.getRange(row.at, 1, 1, plan.columns);
+      asText_(range);
+      range.setValues([row.cells]);
+    });
+    return plan.rows.length;
+  });
+
   SpreadsheetApp.flush();
-  return { appended: counts };
+  return { appended: appended, updated: updated };
 }

@@ -109,6 +109,19 @@ export const strings = {
       bad_request: 'Richiesta non valida.',
       use_post: 'Richiesta non valida.',
       server: 'Errore dello script: riprova.',
+      not_found: 'Elemento da modificare non trovato nel foglio: ricarica i dati.',
+      duplicate_id: 'Elemento già presente nel foglio: ricarica i dati.',
+    },
+    data: {
+      notLoaded: 'I dati non sono stati ancora letti e controllati: nessuna scrittura eseguita.',
+      invalid: (count: number, table: string, row: number, columns: string) =>
+        `I dati nel foglio non sono validi (${count} ${count === 1 ? 'riga' : 'righe'}). ` +
+        `Primo problema: scheda "${table}", riga ${row}, colonna ${columns}. Nessuna scrittura eseguita.`,
+      duplicateIds: (table: string) =>
+        `Nella scheda "${table}" ci sono righe con lo stesso id: correggi il foglio a mano.`,
+      unsupportedVersion: 'Il foglio usa una versione dello schema non supportata da questa app.',
+      invalidWrite: (table: string, columns: string) =>
+        `Dati da salvare non validi (scheda "${table}", colonna ${columns}): nulla è stato scritto.`,
     },
     scriptOther: (code: string) => `Errore dello script (${code}).`,
     http: {

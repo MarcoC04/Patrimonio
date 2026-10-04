@@ -112,4 +112,15 @@ export class ScriptClient {
   async append(appends: readonly AppendRequest[]): Promise<void> {
     await this.call('append', { appends });
   }
+
+  /**
+   * Inserimenti e modifiche (per id, prima colonna) in una sola richiesta atomica: lo script
+   * valida tutto prima di scrivere. Per le modifiche, `rows` contiene la riga intera.
+   */
+  async write(request: {
+    appends?: readonly AppendRequest[];
+    updates?: readonly AppendRequest[];
+  }): Promise<void> {
+    await this.call('write', { appends: request.appends ?? [], updates: request.updates ?? [] });
+  }
 }

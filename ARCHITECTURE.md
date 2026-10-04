@@ -94,7 +94,11 @@ Nota: SQLite non è usato. Per il volume previsto (migliaia di righe) bastano ar
 
 ## 6. Modello dati (una scheda = una tabella)
 
-Colonne comuni a tutte le schede dati: `id` (UUIDv7), `created_at`, `updated_at`, `deleted` (0/1).
+Colonne comuni a tutte le schede dati: `id` (UUIDv7), `created_at`, `updated_at`, `deleted` (0/1). Valgono anche per le schede con chiave logica (`fx_rates`, `price_history`, `portfolio_snapshots`): hanno comunque un `id` sintetico, e l'unicità di (data, valuta/asset) è garantita dal codice. `_meta` e `_backup_log` non hanno colonne comuni (`_meta` usa `key` come chiave).
+
+**Chiave di riga e script:** la prima colonna di ogni scheda è la chiave univoca (`id`, oppure `key` in `_meta`). Lo script rifiuta inserimenti con chiave già presente (`duplicate_id`) e modifiche con chiave inesistente (`not_found`). L'azione `write` esegue inserimenti e modifiche in una sola richiesta **atomica**: valida tutto prima di scrivere, sotto lock; anche la lettura è sotto lock.
+
+**Schede create per fase:** si definiscono nello schema solo le schede della fase in corso (Fase 1: `_meta`, `accounts`, `categories`, `transactions`, `fx_rates`); le altre si aggiungono quando servono. Aggiungere una scheda non richiede migrazione; cambiare le colonne di una scheda esistente sì (`schema_version` in `_meta`).
 Prima riga = intestazioni. L'app crea il foglio, le schede e le intestazioni al primo avvio e valida la struttura a ogni lettura.
 
 ```
