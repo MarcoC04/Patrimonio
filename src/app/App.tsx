@@ -1,5 +1,6 @@
 import { HashRouter, Route, Routes } from 'react-router';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { InvestmentsPage } from '../features/investments/InvestmentsPage';
 import { PlaceholderPage } from '../features/PlaceholderPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import { TransactionsPage } from '../features/transactions/TransactionsPage';
@@ -14,7 +15,7 @@ import { Shell } from './Shell';
  * LockGate sta fuori da DataProvider: quando l'app si blocca, i dati in memoria vengono scartati.
  */
 export function App() {
-  const { budgets, investments } = strings.pages;
+  const { budgets } = strings.pages;
   return (
     <LockProvider>
       <LockGate>
@@ -28,10 +29,7 @@ export function App() {
                   path="budget"
                   element={<PlaceholderPage title={budgets.title} empty={budgets.empty} />}
                 />
-                <Route
-                  path="investimenti"
-                  element={<PlaceholderPage title={investments.title} empty={investments.empty} />}
-                />
+                <Route path="investimenti" element={<InvestmentsPage />} />
                 <Route path="impostazioni" element={<SettingsPage />} />
               </Route>
             </Routes>

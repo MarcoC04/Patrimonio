@@ -5,19 +5,24 @@ import type { RateMap } from '../../domain/dashboard';
 import { BASE_CURRENCY } from '../../domain/money';
 import { userMessage } from '../../ui/errors';
 
-/** Ultimi tassi di cambio per le valute dei conti (servono a rivalutare i saldi in EUR). */
+/** Ultimi tassi di cambio per le valute di conti e asset (servono a rivalutarli in EUR). */
 export interface RatesState {
   status: 'loading' | 'ready' | 'error';
   rates: RateMap;
   message: string | null;
 }
 
-export function useLatestRates(accounts: Dataset['accounts']): RatesState {
+export function useLatestRates(
+  accounts: Dataset['accounts'],
+  assets: Dataset['assets'] = [],
+): RatesState {
   const { latestRates } = useData();
-  const currencies = useMemo(
-    () => [...new Set(accounts.map((a) => a.currency))].filter((c) => c !== BASE_CURRENCY).sort(),
-    [accounts],
-  );
+  // L'elenco delle valute si ricostruisce solo se cambia davvero (non a ogni nuovo array di dati).
+  const key = [...new Set([...accounts.map((a) => a.currency), ...assets.map((a) => a.currency)])]
+    .filter((c) => c !== BASE_CURRENCY)
+    .sort()
+    .join(',');
+  const currencies = useMemo(() => (key === '' ? [] : key.split(',')), [key]);
   const [state, setState] = useState<RatesState>({
     status: currencies.length === 0 ? 'ready' : 'loading',
     rates: {},

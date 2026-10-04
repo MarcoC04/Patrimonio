@@ -17,6 +17,7 @@ import { formatEuroCompact, formatMonthShort } from '../../ui/format';
 import { strings } from '../../ui/strings';
 import { chartColors, tooltipStyle } from '../../ui/theme';
 import { RatesNotice } from './RatesNotice';
+import { UnpricedNotice } from './UnpricedNotice';
 import type { RatesState } from './useLatestRates';
 
 /** Patrimonio netto a fine mese nell'anno scelto, ad area come nell'immagine di riferimento. */
@@ -32,9 +33,23 @@ export function NetWorthChart({
   // useId produce ":r1:": nei riferimenti url(#...) dell'SVG si tolgono i due punti.
   const gradientId = `nw-${useId().replace(/:/g, '')}`;
 
-  const { points, missing } = useMemo(
-    () => netWorthYearSeries(data.accounts, data.transactions, year, rates.rates),
-    [data.accounts, data.transactions, year, rates.rates],
+  // Patrimonio totale: conti + investimenti valutati con l'ultimo prezzo noto a ogni fine mese.
+  const { points, missing, unpriced } = useMemo(
+    () =>
+      netWorthYearSeries(data.accounts, data.transactions, year, rates.rates, undefined, {
+        assets: data.assets,
+        operations: data.investmentTransactions,
+        prices: data.priceHistory,
+      }),
+    [
+      data.accounts,
+      data.transactions,
+      data.assets,
+      data.investmentTransactions,
+      data.priceHistory,
+      year,
+      rates.rates,
+    ],
   );
   const series = points.map((p) => ({ label: formatMonthShort(p.date), value: p.balanceMinor }));
 
@@ -83,6 +98,7 @@ export function NetWorthChart({
             </ResponsiveContainer>
           </div>
           <RatesNotice rates={rates} missing={missing} />
+          <UnpricedNotice ids={unpriced} assets={data.assets} />
           <DataTable
             headers={[strings.dashboard.table.month, strings.dashboard.table.netWorth]}
             rows={points.map((p) => [formatMonthShort(p.date), formatMoney(p.balanceMinor)])}

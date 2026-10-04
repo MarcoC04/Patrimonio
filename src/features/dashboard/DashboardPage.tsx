@@ -2,15 +2,17 @@ import { useMemo, useState } from 'react';
 import type { Dataset } from '../../data/repository';
 import { formatDateIt, todayIso } from '../../domain/dates';
 import {
-  assetsByAccountType,
   availableYears,
   incomeByCategory,
-  netWorthBase,
+  percentOf,
   spendByCategory,
+  wealthAt,
+  wealthByKind,
   yearEndDates,
   yearRange,
   yearSummary,
 } from '../../domain/dashboard';
+import type { Portfolio } from '../../domain/investments';
 import { formatMoney } from '../../domain/money';
 import { Card, EmptyState } from '../../ui/Card';
 import { strings } from '../../ui/strings';
@@ -22,6 +24,7 @@ import { FlowChart } from './FlowChart';
 import { KpiTile } from './KpiTile';
 import { NetWorthChart } from './NetWorthChart';
 import { RatesNotice } from './RatesNotice';
+import { UnpricedNotice } from './UnpricedNotice';
 import { useLatestRates } from './useLatestRates';
 import { YearSelector } from './YearSelector';
 
@@ -41,25 +44,34 @@ function DashboardView({ data }: { data: Dataset }) {
   const today = todayIso(now);
   const currentYear = now.getFullYear();
   const [year, setYear] = useState(currentYear);
-  const rates = useLatestRates(data.accounts);
+  const rates = useLatestRates(data.accounts, data.assets);
 
   const years = useMemo(
     () => availableYears(data.transactions, data.accounts, now),
     [data.transactions, data.accounts, now],
   );
 
-  // Patrimonio e attività si riferiscono alla fine dell'anno scelto (oggi, per l'anno in corso).
+  const portfolio = useMemo<Portfolio>(
+    () => ({
+      assets: data.assets,
+      operations: data.investmentTransactions,
+      prices: data.priceHistory,
+    }),
+    [data.assets, data.investmentTransactions, data.priceHistory],
+  );
+
+  // Patrimonio e torta si riferiscono alla fine dell'anno scelto (oggi, per l'anno in corso).
   const asOf = yearEndDates(year, now).at(-1) ?? today;
-  const netWorth = netWorthBase(data.accounts, data.transactions, asOf, rates.rates);
+  const wealth = wealthAt(data.accounts, data.transactions, portfolio, asOf, rates.rates);
   const summary = useMemo(() => yearSummary(data.transactions, year), [data.transactions, year]);
 
-  const assets = useMemo(
-    () => assetsByAccountType(data.accounts, data.transactions, asOf, rates.rates),
-    [data.accounts, data.transactions, asOf, rates.rates],
+  const split = useMemo(
+    () => wealthByKind(data.accounts, data.transactions, portfolio, asOf, rates.rates),
+    [data.accounts, data.transactions, portfolio, asOf, rates.rates],
   );
-  const assetSlices = assets.items.map((item) => ({
-    key: item.type,
-    name: strings.accounts.types[item.type],
+  const wealthSlices = split.items.map((item) => ({
+    key: item.kind,
+    name: strings.dashboard.assets.kinds[item.kind],
     amountMinor: item.amountMinor,
   }));
 
@@ -90,7 +102,7 @@ function DashboardView({ data }: { data: Dataset }) {
             <KpiTile
               icon="netWorth"
               label={strings.dashboard.kpi.netWorth}
-              value={formatMoney(netWorth.totalMinor)}
+              value={formatMoney(wealth.totalMinor)}
               note={strings.dashboard.kpi.netWorthNote(formatDateIt(asOf))}
             />
             <KpiTile
@@ -112,7 +124,8 @@ function DashboardView({ data }: { data: Dataset }) {
               tone={summary.savingsMinor >= 0 ? 'income' : 'expense'}
             />
           </div>
-          <RatesNotice rates={rates} missing={netWorth.missing} />
+          <RatesNotice rates={rates} missing={wealth.missing} />
+          <UnpricedNotice ids={wealth.unpriced} assets={data.assets} />
         </div>
         <div className="order-1 md:order-2 md:text-right">
           <p className="mb-2 text-sm text-muted">{strings.dashboard.subtitle}</p>
@@ -133,10 +146,29 @@ function DashboardView({ data }: { data: Dataset }) {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <DonutCard
           title={strings.dashboard.assets.title}
-          slices={assetSlices}
+          slices={wealthSlices}
           emptyMessage={strings.dashboard.assets.empty}
           chartLabel={strings.dashboard.assets.chartLabel}
-          footer={<RatesNotice rates={rates} missing={assets.missing} />}
+          footer={
+            <div className="w-full border-t border-line-soft pt-2 text-sm text-fg">
+              <p>
+                {strings.dashboard.assets.accounts}:{' '}
+                <strong>{formatMoney(split.accountsMinor)}</strong>{' '}
+                <span className="text-muted">
+                  ({percentOf(split.accountsMinor, split.totalMinor)}%)
+                </span>
+              </p>
+              <p>
+                {strings.dashboard.assets.investments}:{' '}
+                <strong>{formatMoney(split.investmentsMinor)}</strong>{' '}
+                <span className="text-muted">
+                  ({percentOf(split.investmentsMinor, split.totalMinor)}%)
+                </span>
+              </p>
+              <RatesNotice rates={rates} missing={split.missing} />
+              <UnpricedNotice ids={split.unpriced} assets={data.assets} />
+            </div>
+          }
         />
         <DonutCard
           title={strings.dashboard.incomeByCategory.title}

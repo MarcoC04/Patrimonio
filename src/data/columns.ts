@@ -89,6 +89,12 @@ export const col = {
     format: identity,
   } satisfies ColumnDef<string>,
 
+  /** Decimale esatto come stringa, zero o maggiore (quantità, prezzi). Mai float. */
+  decimal: {
+    schema: z.string().regex(/^\d+(\.\d+)?$/),
+    format: identity,
+  } satisfies ColumnDef<string>,
+
   /** Uno tra i valori ammessi. */
   oneOf<const V extends readonly [string, ...string[]]>(values: V) {
     // `format` tipizzato sul valore ammesso: altrimenti il tipo dell'entità si allargherebbe a string.

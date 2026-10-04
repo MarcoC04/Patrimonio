@@ -51,6 +51,12 @@ export function sumMinor(values: readonly number[]): number {
 }
 
 /**
+ * Numero con il punto come separatore delle migliaia ("1.234", "12.345.678"). Il primo gruppo non
+ * può iniziare con zero: "0.123" non sono 123 ma un decimale scritto con il punto.
+ */
+export const THOUSANDS = /^[1-9]\d{0,2}(\.\d{3})+$/;
+
+/**
  * Legge un importo scritto all'italiana e lo restituisce in centesimi, o null se non valido.
  * Accetta segno opzionale, virgola decimale e punto come separatore delle migliaia ("1.234,56"),
  * oppure il punto come decimale quando ha 1-2 cifre dopo ("12.5"). Altro (valuta, spazi interni,
@@ -73,10 +79,10 @@ export function parseMoney(input: string, exponent = 2): number | null {
     whole = left;
     fraction = right;
     // Con la virgola decimale, i punti nella parte intera sono migliaia: gruppi di 3.
-    if (whole.includes('.') && !/^\d{1,3}(\.\d{3})+$/.test(whole)) return null;
+    if (whole.includes('.') && !THOUSANDS.test(whole)) return null;
     whole = whole.replaceAll('.', '');
   } else if (body.includes('.')) {
-    if (/^\d{1,3}(\.\d{3})+$/.test(body)) {
+    if (THOUSANDS.test(body)) {
       whole = body.replaceAll('.', ''); // "1.234" = milleduecentotrentaquattro
     } else if (/^\d+\.\d+$/.test(body)) {
       [whole = '', fraction = ''] = body.split('.');

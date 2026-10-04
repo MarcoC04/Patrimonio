@@ -23,6 +23,9 @@ const empty: Dataset = {
   categories: [],
   transactions: [],
   fxRates: [],
+  assets: [],
+  investmentTransactions: [],
+  priceHistory: [],
   meta: { schema_version: '1' },
 };
 

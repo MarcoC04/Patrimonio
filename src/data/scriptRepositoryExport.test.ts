@@ -44,7 +44,16 @@ describe('ScriptRepository.exportAll', () => {
     expect(requests - before).toBe(1);
 
     expect(Object.keys(tabs).sort()).toEqual(
-      ['_meta', 'accounts', 'categories', 'fx_rates', 'transactions'].sort(),
+      [
+        '_meta',
+        'accounts',
+        'assets',
+        'categories',
+        'fx_rates',
+        'investment_transactions',
+        'price_history',
+        'transactions',
+      ].sort(),
     );
     const accounts = tabs['accounts'] ?? [];
     expect(accounts[0]?.[0]).toBe('id'); // intestazioni incluse

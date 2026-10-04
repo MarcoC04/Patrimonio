@@ -14,6 +14,28 @@ const common = {
 export const ACCOUNT_TYPES = ['checking', 'savings', 'cash', 'brokerage'] as const;
 export const CATEGORY_KINDS = ['expense', 'income', 'transfer'] as const;
 
+export const ASSET_CLASSES = [
+  'equity',
+  'bond',
+  'etf',
+  'crypto',
+  'commodity',
+  'real_estate',
+  'cash',
+  'other',
+] as const;
+export const INVESTMENT_TYPES = [
+  'buy',
+  'sell',
+  'dividend',
+  'interest',
+  'fee',
+  'deposit',
+  'withdrawal',
+  'split',
+] as const;
+export const PRICE_SOURCES = ['manual', 'api'] as const;
+
 export const metaTable = defineTable('_meta', {
   key: col.requiredText,
   value: col.text,
@@ -72,7 +94,51 @@ export const fxRatesTable = defineTable('fx_rates', {
   fetched_at: col.timestamp,
 });
 
+export const assetsTable = defineTable('assets', {
+  ...common,
+  name: col.requiredText,
+  symbol: col.text,
+  isin: col.text,
+  asset_class: col.oneOf(ASSET_CLASSES),
+  /** Valuta in cui è quotato l'asset (e in cui si inseriscono i prezzi). */
+  currency: col.currency,
+  price_source: col.oneOf(PRICE_SOURCES),
+});
+
+export const investmentTransactionsTable = defineTable('investment_transactions', {
+  ...common,
+  /** Conto di investimento dove è detenuto l'asset (facoltativo). */
+  account_id: col.optionalId,
+  asset_id: col.id,
+  type: col.oneOf(INVESTMENT_TYPES),
+  date: col.date,
+  /** Unità (anche frazionarie): stringa decimale esatta. */
+  quantity: col.decimal,
+  /** Prezzo di una unità nella valuta dell'asset: stringa decimale esatta. */
+  unit_price: col.decimal,
+  /** Commissioni in centesimi della valuta dell'operazione (denaro: intero, mai decimale). */
+  fees_minor: col.count,
+  currency: col.currency,
+  /** Tasso "1 EUR = tasso unità della valuta" alla data ("1" per EUR). */
+  fx_rate: col.positiveDecimal,
+  /** Controvalore in EUR dell'operazione (quantità × prezzo, commissioni comprese per gli acquisti), sempre positivo. */
+  amount_base_minor: col.minor,
+});
+
+export const priceHistoryTable = defineTable('price_history', {
+  ...common,
+  asset_id: col.id,
+  date: col.date,
+  /** Prezzo di una unità nella valuta dell'asset. */
+  price: col.positiveDecimal,
+  currency: col.currency,
+  source: col.oneOf(PRICE_SOURCES),
+});
+
 export type MetaEntry = RowOf<typeof metaTable>;
+export type Asset = RowOf<typeof assetsTable>;
+export type InvestmentTransaction = RowOf<typeof investmentTransactionsTable>;
+export type PricePoint = RowOf<typeof priceHistoryTable>;
 export type Account = RowOf<typeof accountsTable>;
 export type Category = RowOf<typeof categoriesTable>;
 export type Transaction = RowOf<typeof transactionsTable>;

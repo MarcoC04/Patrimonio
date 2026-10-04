@@ -1,4 +1,12 @@
-import type { Account, Category, FxRate, Transaction } from './schema';
+import type {
+  Account,
+  Asset,
+  Category,
+  FxRate,
+  InvestmentTransaction,
+  PricePoint,
+  Transaction,
+} from './schema';
 
 /**
  * Tutto l'accesso ai dati passa da qui: la UI non conosce lo script né il foglio.
@@ -11,6 +19,9 @@ export interface Dataset {
   categories: Category[];
   transactions: Transaction[];
   fxRates: FxRate[];
+  assets: Asset[];
+  investmentTransactions: InvestmentTransaction[];
+  priceHistory: PricePoint[];
   meta: Record<string, string>;
 }
 
@@ -27,6 +38,9 @@ export interface ChangeSet {
   categories?: TableChanges<Category>;
   transactions?: TableChanges<Transaction>;
   fxRates?: TableChanges<FxRate>;
+  assets?: TableChanges<Asset>;
+  investmentTransactions?: TableChanges<InvestmentTransaction>;
+  priceHistory?: TableChanges<PricePoint>;
   /** Valori di `_meta` da impostare (inseriti se nuovi, aggiornati se già presenti). */
   meta?: Record<string, string>;
 }

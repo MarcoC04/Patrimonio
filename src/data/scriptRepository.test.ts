@@ -87,7 +87,16 @@ describe('ScriptRepository.init', () => {
     await repo.init();
 
     expect([...script.spreadsheet.sheets.keys()].sort()).toEqual(
-      ['_meta', 'accounts', 'categories', 'fx_rates', 'transactions'].sort(),
+      [
+        '_meta',
+        'accounts',
+        'assets',
+        'categories',
+        'fx_rates',
+        'investment_transactions',
+        'price_history',
+        'transactions',
+      ].sort(),
     );
     const meta = (script.call({ action: 'read', tabs: ['_meta'] }).data as { _meta: string[][] })
       ._meta;
@@ -134,6 +143,9 @@ describe('ScriptRepository.load e save', () => {
       categories: [],
       transactions: [],
       fxRates: [],
+      assets: [],
+      investmentTransactions: [],
+      priceHistory: [],
       meta: { schema_version: '1', base_currency: 'EUR', locale: 'it-IT' },
     });
   });

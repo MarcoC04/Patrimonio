@@ -29,6 +29,8 @@ describe('parseMoney', () => {
     ['12,345'], // 3 decimali: ambiguo, rifiutato
     ['1.2.3'],
     ['1,2,3'],
+    ['0.123'], // non sono 123 €: un gruppo delle migliaia non inizia con zero, e 3 decimali non sono ammessi
+    ['0.123.456'],
     ['12 €'],
     ['1 234,56'], // spazio interno
     ['1.23,45'], // gruppo delle migliaia sbagliato

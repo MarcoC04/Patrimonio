@@ -4,6 +4,7 @@ import {
   formatEuroWhole,
   formatMonthLabel,
   formatMonthShort,
+  formatTenthsPercent,
   signedMoney,
 } from './format';
 
@@ -30,6 +31,21 @@ describe('formatMonthLabel e formatMonthShort', () => {
   it('un testo non valido resta com’è', () => {
     expect(formatMonthLabel('boh')).toBe('boh');
     expect(formatMonthShort('boh')).toBe('boh');
+  });
+});
+
+describe('formatTenthsPercent', () => {
+  it.each([
+    [188, '+18,8%'],
+    [307, '+30,7%'],
+    [-100, '-10,0%'],
+    [5, '+0,5%'],
+    [-5, '-0,5%'],
+    [0, '0,0%'],
+    [1000, '+100,0%'],
+    [12345, '+1234,5%'],
+  ])('%i decimi → "%s"', (tenths, expected) => {
+    expect(formatTenthsPercent(tenths)).toBe(expected);
   });
 });
 

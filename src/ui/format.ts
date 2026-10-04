@@ -40,6 +40,17 @@ export function formatMonthShort(isoDate: string): string {
 }
 
 /**
+ * Rendimento da decimi di punto percentuale a testo con segno: 188 → "+18,8%", −100 → "−10,0%",
+ * 0 → "0,0%". Aritmetica intera: nessun float nel calcolo.
+ */
+export function formatTenthsPercent(tenths: number): string {
+  const abs = Math.abs(tenths);
+  const text = `${Math.floor(abs / 10)},${abs % 10}%`;
+  if (tenths > 0) return `+${text}`;
+  return tenths < 0 ? `-${text}` : text;
+}
+
+/**
  * Importo abbreviato per gli assi dei grafici: "800", "19,1K", "-2,5K". Solo visualizzazione:
  * l'arrotondamento non entra mai nei calcoli.
  */

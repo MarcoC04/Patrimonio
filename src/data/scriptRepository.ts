@@ -11,9 +11,12 @@ import {
 import { rowsToObjects } from './rows';
 import {
   accountsTable,
+  assetsTable,
   categoriesTable,
   fxRatesTable,
+  investmentTransactionsTable,
   metaTable,
+  priceHistoryTable,
   SCHEMA_VERSION,
   transactionsTable,
 } from './schema';
@@ -33,7 +36,16 @@ export interface ScriptApi {
   ): Promise<{ date: string; rates: Record<string, string> }>;
 }
 
-const ALL_TABLES = [metaTable, accountsTable, categoriesTable, transactionsTable, fxRatesTable];
+const ALL_TABLES = [
+  metaTable,
+  accountsTable,
+  categoriesTable,
+  transactionsTable,
+  fxRatesTable,
+  assetsTable,
+  investmentTransactionsTable,
+  priceHistoryTable,
+];
 
 const META_DEFAULTS: Record<string, string> = {
   schema_version: SCHEMA_VERSION,
@@ -136,6 +148,13 @@ export class ScriptRepository implements Repository {
     const categories = readTable(categoriesTable, values(categoriesTable.name), issues);
     const transactions = readTable(transactionsTable, values(transactionsTable.name), issues);
     const fxRates = readTable(fxRatesTable, values(fxRatesTable.name), issues);
+    const assets = readTable(assetsTable, values(assetsTable.name), issues);
+    const investmentTransactions = readTable(
+      investmentTransactionsTable,
+      values(investmentTransactionsTable.name),
+      issues,
+    );
+    const priceHistory = readTable(priceHistoryTable, values(priceHistoryTable.name), issues);
 
     const first = issues[0];
     if (first) {
@@ -170,6 +189,18 @@ export class ScriptRepository implements Repository {
       fxRatesTable.name,
       fxRates.map((e) => e.id),
     );
+    assertUniqueKeys(
+      assetsTable.name,
+      assets.map((e) => e.id),
+    );
+    assertUniqueKeys(
+      investmentTransactionsTable.name,
+      investmentTransactions.map((e) => e.id),
+    );
+    assertUniqueKeys(
+      priceHistoryTable.name,
+      priceHistory.map((e) => e.id),
+    );
 
     const metaMap = Object.fromEntries(meta.map((e) => [e.key, e.value]));
     if (metaMap['schema_version'] !== SCHEMA_VERSION) {
@@ -183,6 +214,9 @@ export class ScriptRepository implements Repository {
       categories: categories.filter((e) => !e.deleted),
       transactions: transactions.filter((e) => !e.deleted),
       fxRates: fxRates.filter((e) => !e.deleted),
+      assets: assets.filter((e) => !e.deleted),
+      investmentTransactions: investmentTransactions.filter((e) => !e.deleted),
+      priceHistory: priceHistory.filter((e) => !e.deleted),
       meta: metaMap,
     };
   }
@@ -207,6 +241,9 @@ export class ScriptRepository implements Repository {
     collect(categoriesTable, changes.categories, appends, updates);
     collect(transactionsTable, changes.transactions, appends, updates);
     collect(fxRatesTable, changes.fxRates, appends, updates);
+    collect(assetsTable, changes.assets, appends, updates);
+    collect(investmentTransactionsTable, changes.investmentTransactions, appends, updates);
+    collect(priceHistoryTable, changes.priceHistory, appends, updates);
 
     // _meta: i valori nuovi si aggiungono, quelli già presenti si riscrivono (la chiave è `key`).
     const metaEntries = Object.entries(changes.meta ?? {}).map(([key, value]) => ({ key, value }));

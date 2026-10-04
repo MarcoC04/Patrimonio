@@ -72,7 +72,7 @@ PC Windows (Chrome/Edge)  /  iPhone (PWA Safari)
 | Grafici | Recharts |
 | PWA | `vite-plugin-pwa` |
 | Validazione | Zod |
-| Decimali | `decimal.js` o `big.js` (quantità e prezzi asset) |
+| Decimali | `decimal.js` (quantità e prezzi asset), usato solo in `src/domain/decimal.ts`; il resto del codice maneggia stringhe decimali |
 | Import | `papaparse` (CSV), `pdfjs-dist` (PDF), in un Web Worker |
 | Accesso ai dati | Apps Script (app web, "esegui come me", accesso "chiunque") + chiave segreta. Nessun OAuth, nessun Google Identity Services |
 | Hosting | Hosting statico gratuito con HTTPS (Cloudflare Pages o GitHub Pages) |
@@ -157,7 +157,7 @@ assets
 
 investment_transactions
   account_id, asset_id, type [buy|sell|dividend|interest|fee|deposit|withdrawal|split],
-  date, quantity, unit_price, fees, currency, fx_rate, amount_base_minor
+  date, quantity, unit_price, fees_minor, currency, fx_rate, amount_base_minor
 
 price_history           chiave (asset_id, date)
   asset_id, date, price, currency, source
@@ -221,14 +221,29 @@ portfolio_snapshots     (cache ricalcolabile per TWR e grafico)
 
 Struttura (ispirata a un riferimento scelto dal proprietario): in alto quattro indicatori e il **selettore dell'anno**; poi due grafici larghi; poi tre riquadri. Tutto si riferisce all'**anno scelto** (predefinito: quello in corso; gli anni offerti sono quelli con movimenti o conti aperti).
 
-- **Patrimonio netto** = somma dei saldi di tutti i conti, in EUR, **alla fine dell'anno scelto** (oggi per l'anno in corso): saldo iniziale + movimenti fino a quel giorno; prima della data del saldo iniziale un conto vale 0. I giroconti tra conti non lo cambiano. I conti in valuta estera usano l'ultimo tasso disponibile; senza tasso il conto è escluso e segnalato. Non esistono passività: i conti con saldo negativo riducono il patrimonio. Con gli investimenti (Fase 3) si aggiungerà il valore degli asset.
+- **Patrimonio netto** = saldi di tutti i conti **+ valore degli investimenti**, in EUR, **alla fine dell'anno scelto** (oggi per l'anno in corso). Saldo di un conto = saldo iniziale + movimenti fino a quel giorno; prima della data del saldo iniziale un conto vale 0. I giroconti tra conti non lo cambiano. I conti e gli asset in valuta estera usano l'ultimo tasso disponibile; senza tasso sono esclusi e segnalati. Non esistono passività: i conti con saldo negativo riducono il patrimonio.
 - **Entrate / Spese / Risparmio** dell'anno: da `amount_base_minor` (EUR), **giroconti esclusi**; risparmio = entrate − spese (può essere negativo).
 - **Patrimonio netto per mese** (grafico ad area): saldo a fine mese dei mesi dell'anno, mai oltre oggi.
 - **Entrate, spese e flusso di cassa per mese**: barre per entrate e spese, linea per entrate − spese; solo i mesi già iniziati.
-- **Attività per tipo di conto** (ciambella): saldi positivi per tipo (conto corrente, conto deposito, contanti, investimenti), in EUR alla fine dell'anno scelto. Un conto in rosso non è un'attività e non compare. (Al posto delle passività del riferimento: il proprietario non ha mutui né carte di credito.)
+- **Conti e investimenti** (torta): un pezzo per ogni tipo di conto con saldo positivo (conto corrente, conto deposito, contanti, liquidità del conto di investimento) più **"Investimenti"** (valore degli asset, §7.9), in EUR alla fine dell'anno scelto, con sotto il totale dei conti e degli investimenti e le percentuali. Un conto in rosso non è un'attività e non compare. (Al posto delle passività del riferimento: il proprietario non ha mutui né carte di credito.)
 - **Entrate per categoria** (ciambella) e **Spese per categoria** (barre): sottocategorie sommate nella madre, senza categoria = "Da categorizzare", primi 5/6 elementi + "Altre categorie".
 - **Accessibilità**: ogni grafico ha un'etichetta testuale; le ciambelle hanno l'elenco con importo e percentuale; i grafici nel tempo hanno la tabella dei dati ("Mostra i dati"). Non ci si affida al solo colore.
 - **Tema scuro unico** (nessuna alternativa chiara): palette in `src/ui/theme.ts` e `src/index.css`, con un test che ne verifica contrasto (≥ 4,5:1 per i testi, ≥ 3:1 per bordi e grafici) e coerenza tra i due file.
+
+### 7.9 Investimenti (implementazione)
+
+Gestione manuale degli asset posseduti, con acquisti, vendite e prezzi inseriti a mano (nessuna fonte di prezzi online per ora: `price_source = manual`).
+
+- **Schede**: `assets`, `investment_transactions` (acquisto/vendita; gli altri tipi dello schema — dividendi, commissioni, split… — restano riservati), `price_history`. Quantità e prezzi sono **stringhe decimali esatte** (mai float); le commissioni sono denaro e si salvano come intero in `fees_minor` (centesimi della valuta dell'asset), non come decimale.
+- **Quantità** a una data = Σ acquisti − Σ vendite fino a quella data. In nessun momento si può vendere più di quanto si possiede; non si può eliminare un'operazione se la quantità scenderebbe sotto zero in qualche momento (nello stesso giorno gli acquisti contano prima delle vendite).
+- **Prezzo** a una data = l'ultimo prezzo noto fino a quel giorno, tra i prezzi inseriti e i prezzi delle operazioni; a parità di data prevale il prezzo inserito a mano. Senza alcun prezzo noto l'asset è **escluso dal patrimonio e segnalato** (non si inventa un valore). Un secondo prezzo nello stesso giorno sostituisce il primo.
+- **Valore** = quantità × prezzo, arrotondato al centesimo nella valuta dell'asset e poi convertito in EUR (ultimo tasso disponibile; senza tasso, escluso e segnalato).
+- **Operazioni**: `amount_base_minor` (sempre positivo) = acquisto: quantità × prezzo + commissioni; vendita: quantità × prezzo − commissioni, convertiti in EUR al **cambio del giorno** (salvato in `fx_rate`, come per i movimenti).
+- **Rendimento semplice** (ARCHITECTURE §7.6): ROI = (valore attuale + incassi dalle vendite − totale pagato) / totale pagato, tutto in EUR. Il TWR resta della Fase 3 completa.
+- **Liquidità**: gli acquisti e le vendite **non muovono il saldo dei conti** automaticamente. La liquidità del conto di investimento si tiene aggiornata a parte (saldo del conto). `account_id` delle operazioni è facoltativo e indica solo dove è detenuto l'asset.
+- **Asset in valuta estera**: l'acquisto richiede il cambio del giorno (dal servizio dei cambi, §5).
+- **Nuovo asset**: un solo modulo che crea asset, acquisto iniziale (quantità, prezzo pagato, data, commissioni) e, se indicato, il prezzo attuale, **in un'unica scrittura atomica**.
+- **Aggiornamento di un foglio esistente**: le tre schede nuove si creano da sole all'avvio, senza toccare i dati già presenti (nessuna migrazione: sono schede nuove).
 
 ## 8. Sicurezza
 
@@ -286,8 +301,8 @@ Obiettivo: verificare che la PWA legga e scriva il Sheet tramite lo script Apps 
 
 ### Fase 3 — Investimenti
 
-- CRUD asset e operazioni, storico prezzi, multi-valuta
-- ROI, TWR, asset allocation, patrimonio totale nel tempo
+- **Anticipato su richiesta del proprietario (§7.9):** asset, acquisti e vendite, prezzi manuali, valore e rendimento semplice, patrimonio totale con gli investimenti, torta conti/investimenti, multi-valuta.
+- Resta: TWR, dividendi e interessi, commissioni come operazioni a sé, split, aggiornamento prezzi da fonte gratuita, asset allocation per classe, snapshot del portafoglio nel tempo.
 - Test dei calcoli con casi noti calcolati a mano
 
 ### Fase 4 — Import estratti conto e regole

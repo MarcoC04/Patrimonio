@@ -1,6 +1,7 @@
 import type { Account, Category, Transaction } from '../data/schema';
 import { todayIso } from './dates';
 import { toBaseMinor } from './fx';
+import { investmentsValue, type Portfolio } from './investments';
 import { isTransfer } from './ledger';
 import { BASE_CURRENCY, minorExponent, sumMinor } from './money';
 
@@ -346,21 +347,110 @@ export function yearEndDates(year: number, now: Date = new Date()): string[] {
   return dates;
 }
 
-/** Patrimonio netto a fine mese per l'anno scelto, in EUR (stessi tassi per tutti i punti). */
+const EMPTY_PORTFOLIO: Portfolio = { assets: [], operations: [], prices: [] };
+
+export interface Wealth {
+  /** Saldi dei conti, in centesimi EUR. */
+  accountsMinor: number;
+  /** Valore degli investimenti (quantità × ultimo prezzo noto), in centesimi EUR. */
+  investmentsMinor: number;
+  /** Patrimonio totale = conti + investimenti. */
+  totalMinor: number;
+  /** Valute senza cambio (conti o asset): escluse dal totale. */
+  missing: string[];
+  /** Id degli asset posseduti senza alcun prezzo noto: esclusi dal totale. */
+  unpriced: string[];
+}
+
+/**
+ * Patrimonio alla data: saldi dei conti + valore degli investimenti, in EUR. Ciò che non si può
+ * valutare (cambio o prezzo mancante) non si inventa: è escluso e segnalato.
+ */
+export function wealthAt(
+  accounts: readonly AccountForTotals[],
+  transactions: readonly TransactionForTotals[],
+  portfolio: Portfolio,
+  isoDate: string,
+  rates: RateMap = {},
+): Wealth {
+  const fromAccounts = netWorthBase(accounts, transactions, isoDate, rates);
+  const fromInvestments = investmentsValue(portfolio, isoDate, rates);
+  return {
+    accountsMinor: fromAccounts.totalMinor,
+    investmentsMinor: fromInvestments.totalMinor,
+    totalMinor: fromAccounts.totalMinor + fromInvestments.totalMinor,
+    missing: [...new Set([...fromAccounts.missing, ...fromInvestments.missing])].sort(),
+    unpriced: fromInvestments.unpriced,
+  };
+}
+
+/**
+ * Patrimonio totale (conti + investimenti) a fine mese per l'anno scelto, in EUR. Tutti i punti
+ * usano gli stessi tassi; gli investimenti sono valutati con l'ultimo prezzo noto a ciascuna data.
+ */
 export function netWorthYearSeries(
   accounts: readonly AccountForTotals[],
   transactions: readonly TransactionForTotals[],
   year: number,
   rates: RateMap = {},
   now: Date = new Date(),
-): { points: LiquidityPoint[]; missing: string[] } {
+  portfolio: Portfolio = EMPTY_PORTFOLIO,
+): { points: LiquidityPoint[]; missing: string[]; unpriced: string[] } {
   const missing = new Set<string>();
+  const unpriced = new Set<string>();
   const points = yearEndDates(year, now).map((date) => {
-    const total = netWorthBase(accounts, transactions, date, rates);
-    for (const currency of total.missing) missing.add(currency);
-    return { date, balanceMinor: total.totalMinor };
+    const wealth = wealthAt(accounts, transactions, portfolio, date, rates);
+    for (const currency of wealth.missing) missing.add(currency);
+    for (const id of wealth.unpriced) unpriced.add(id);
+    return { date, balanceMinor: wealth.totalMinor };
   });
-  return { points, missing: [...missing].sort() };
+  return { points, missing: [...missing].sort(), unpriced: [...unpriced].sort() };
+}
+
+export type WealthKind = Account['type'] | 'investments';
+
+export interface WealthShare {
+  kind: WealthKind;
+  /** Importo in centesimi EUR (sempre positivo). */
+  amountMinor: number;
+}
+
+/**
+ * Divisione del patrimonio per la torta: un pezzo per ogni tipo di conto con saldo positivo
+ * (corrente, deposito, contanti, liquidità del conto di investimento) più "investimenti" (il valore
+ * degli asset). Dal più grande al più piccolo; i conti in rosso non sono attività e non compaiono.
+ */
+export function wealthByKind(
+  accounts: readonly AccountForTotals[],
+  transactions: readonly TransactionForTotals[],
+  portfolio: Portfolio,
+  isoDate: string,
+  rates: RateMap = {},
+): {
+  items: WealthShare[];
+  totalMinor: number;
+  accountsMinor: number;
+  investmentsMinor: number;
+  missing: string[];
+  unpriced: string[];
+} {
+  const byAccount = assetsByAccountType(accounts, transactions, isoDate, rates);
+  const invested = investmentsValue(portfolio, isoDate, rates);
+  const items: WealthShare[] = byAccount.items.map((i) => ({
+    kind: i.type,
+    amountMinor: i.amountMinor,
+  }));
+  if (invested.totalMinor > 0)
+    items.push({ kind: 'investments', amountMinor: invested.totalMinor });
+  items.sort((a, b) => b.amountMinor - a.amountMinor || a.kind.localeCompare(b.kind));
+  return {
+    items,
+    totalMinor: sumMinor(items.map((i) => i.amountMinor)),
+    accountsMinor: byAccount.totalMinor,
+    investmentsMinor: invested.totalMinor,
+    missing: [...new Set([...byAccount.missing, ...invested.missing])].sort(),
+    unpriced: invested.unpriced,
+  };
 }
 
 export interface AssetShare {
