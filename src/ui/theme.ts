@@ -40,6 +40,7 @@ export const chartColors = {
   expense: '#f46f82',
   flow: '#6b7cff',
   accent: '#6b7cff',
+  investments: '#22b8d1',
   grid: '#262d42',
   axis: '#8f9ab4',
 } as const;
@@ -51,6 +52,9 @@ export const categoryColors = [
   '#f472b5',
   '#f0a35d',
   '#22b8d1',
+  '#e8cf5a',
+  '#3fbf9a',
+  '#d98a9b',
   '#7e8aa4',
 ] as const;
 

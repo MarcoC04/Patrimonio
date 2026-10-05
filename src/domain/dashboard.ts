@@ -56,7 +56,7 @@ function exponentOrNull(currency: string): number | null {
 }
 
 /** Saldo di un conto a una data, in EUR; null se manca il tasso della sua valuta. */
-function balanceBaseAt(
+export function balanceBaseAt(
   account: AccountForTotals,
   transactions: readonly TransactionForTotals[],
   isoDate: string,

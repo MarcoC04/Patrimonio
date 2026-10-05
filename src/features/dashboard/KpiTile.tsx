@@ -20,7 +20,7 @@ interface KpiTileProps {
 /** Indicatore con icona, etichetta e valore, come i quattro in cima alla dashboard. */
 export function KpiTile({ icon, label, value, tone = 'neutral', note }: KpiTileProps) {
   return (
-    <div className="flex flex-col items-center gap-1 rounded-2xl border border-line bg-surface p-3 text-center md:p-4">
+    <div className="card flex flex-col items-center gap-1 p-3 text-center md:p-4">
       <KpiIcon name={icon} />
       <p className="text-sm font-semibold text-fg">{label}</p>
       <p className={`text-lg font-bold md:text-xl ${toneClass[tone]}`}>{value}</p>

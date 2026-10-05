@@ -232,18 +232,22 @@ portfolio_snapshots     (cache ricalcolabile per TWR e grafico)
 
 - Export dell'intero dataset in CSV (uno per tabella, zip) o JSON, in un click.
 
-### 7.8 Dashboard (definizioni)
+### 7.8 Dashboard "Panoramica" (definizioni)
 
-Struttura (ispirata a un riferimento scelto dal proprietario): in alto quattro indicatori e il **selettore dell'anno**; poi due grafici larghi; poi tre riquadri. Tutto si riferisce all'**anno scelto** (predefinito: quello in corso; gli anni offerti sono quelli con movimenti o conti aperti).
+Struttura (ispirata a un riferimento grafico scelto dal proprietario): in alto la **barra dei filtri**; poi il **patrimonio netto** con la **torta del patrimonio per conto e investimenti come primo grafico**; poi l'andamento nel tempo e le variazioni recenti; poi gli indicatori; poi le spese per categoria; infine i saldi dei conti, gli esercenti principali e gli investimenti. Calcoli in `src/domain/overview.ts` (funzioni pure) e `src/features/dashboard/overviewModel.ts`.
 
-- **Patrimonio netto** = saldi di tutti i conti **+ valore degli investimenti**, in EUR, **alla fine dell'anno scelto** (oggi per l'anno in corso). Saldo di un conto = saldo iniziale + movimenti fino a quel giorno; prima della data del saldo iniziale un conto vale 0. I giroconti tra conti non lo cambiano. I conti e gli asset in valuta estera usano l'ultimo tasso disponibile; senza tasso sono esclusi e segnalati. Non esistono passività: i conti con saldo negativo riducono il patrimonio.
-- **Entrate / Spese / Risparmio** dell'anno: da `amount_base_minor` (EUR), **giroconti esclusi**; risparmio = entrate − spese (può essere negativo).
-- **Patrimonio netto per mese** (grafico ad area): saldo a fine mese dei mesi dell'anno, mai oltre oggi.
-- **Entrate, spese e flusso di cassa per mese**: barre per entrate e spese, linea per entrate − spese; solo i mesi già iniziati.
-- **Conti e investimenti** (torta): un pezzo per ogni tipo di conto con saldo positivo (conto corrente, conto deposito, contanti, liquidità del conto di investimento) più **"Investimenti"** (valore degli asset, §7.9), in EUR alla fine dell'anno scelto, con sotto il totale dei conti e degli investimenti e le percentuali. Un conto in rosso non è un'attività e non compare. (Al posto delle passività del riferimento: il proprietario non ha mutui né carte di credito.)
-- **Entrate per categoria** (ciambella) e **Spese per categoria** (barre): sottocategorie sommate nella madre, senza categoria = "Da categorizzare", primi 5/6 elementi + "Altre categorie".
-- **Accessibilità**: ogni grafico ha un'etichetta testuale; le ciambelle hanno l'elenco con importo e percentuale; i grafici nel tempo hanno la tabella dei dati ("Mostra i dati"). Non ci si affida al solo colore.
-- **Tema scuro unico** (nessuna alternativa chiara): palette in `src/ui/theme.ts` e `src/index.css`, con un test che ne verifica contrasto (≥ 4,5:1 per i testi, ≥ 3:1 per bordi e grafici) e coerenza tra i due file.
+- **Filtri condivisi con i Movimenti** (`src/features/filters/`): **periodo** (1M, 3M, 6M, Quest'anno, 1A, Max, Personalizzato; i periodi mobili finiscono oggi; predefinito 1A) e **conti** (uno o più; nessuno = tutti). Restano in memoria finché l'app è aperta, non si salvano. Le categorie restano un filtro dei soli Movimenti.
+- **Patrimonio netto** = saldi dei conti scelti **+ valore degli investimenti** detenuti in quei conti (le operazioni con `account_id`; senza filtro, tutte), in EUR, alla fine del periodo. Variazione = patrimonio finale − patrimonio del giorno prima dell'inizio (per "Max": dal primo dato); la percentuale manca se il valore di partenza è 0. Saldo di un conto = saldo iniziale + movimenti fino a quel giorno; prima della data del saldo iniziale un conto vale 0. Giroconti esclusi dalle variazioni. Valute senza tasso e asset senza prezzo: esclusi e segnalati.
+- **Torta** (primo grafico): un pezzo per ogni conto con saldo positivo e uno per gli **Investimenti**; un conto in rosso non è un'attività e non compare (ma pesa sul patrimonio netto).
+- **Andamento del patrimonio**: area a pila (conti + investimenti). Punti: ogni giorno fino a 40 giorni di periodo, ogni 7 giorni fino a ~190, poi a fine mese; l'ultimo è sempre oggi.
+- **Andamento recente**: variazione del patrimonio negli ultimi 7 giorni, 30 giorni e 12 mesi, sempre fino a oggi (indipendente dal periodo scelto).
+- **Indicatori del periodo**: entrate, spese, risparmio (entrate − spese), **tasso di risparmio** (risparmio / entrate), **spesa media mensile**, liquidità, investimenti e rendimento. Confronto con il **periodo precedente** della stessa durata solo se in quel periodo c'erano movimenti (per le spese un aumento è un peggioramento). Giroconti sempre esclusi.
+- **Spese del mese**: spese del mese in corso contro il mese scorso (a parità di giorni trascorsi e totale), al posto del budget, che è di una fase successiva.
+- **Spese e entrate per categoria**: sottocategorie sommate nella madre, senza categoria = "Da categorizzare", prime 6 voci + "Altre categorie". **Dove spendi di più**: le spese raggruppate per esercente (parole significative della descrizione).
+- **Avviso "da categorizzare"**: numero di movimenti senza categoria nel periodo, con collegamento ai Movimenti.
+- **Accessibilità**: ogni grafico ha un'etichetta testuale; le ciambelle e le barre hanno l'elenco con importo e percentuale; i grafici nel tempo hanno la tabella dei dati ("Mostra i dati"). Variazioni con freccia e segno, non solo colore.
+- **Tema scuro unico** (nessuna alternativa chiara): palette navy e indaco estratta dal riferimento in `src/ui/theme.ts` e `src/index.css`, con un test che ne verifica contrasto (≥ 4,5:1 per i testi, ≥ 3:1 per i bordi dei controlli e per i grafici) e coerenza tra i due file. Due bordi: `line` (sottile, riquadri) e `control` (ben visibile, campi e pulsanti).
+- **Build di prova** (`VITE_DEMO=1`): carica dati inventati in memoria per provare la grafica; non è inclusa nella versione pubblicata.
 
 ### 7.9 Investimenti (implementazione)
 

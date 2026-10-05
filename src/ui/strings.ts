@@ -13,6 +13,101 @@ export const strings = {
     newMovement: 'Nuovo movimento',
   },
 
+  overview: {
+    hero: {
+      title: 'Patrimonio netto',
+      change: (range: string) => `${range}`,
+      periodSince: (date: string) => `dal ${date}`,
+      periodMax: 'dall’inizio',
+      composition: 'Composizione',
+    },
+    wealth: {
+      title: 'Patrimonio per conto e investimenti',
+      center: 'Totale',
+      investments: 'Investimenti',
+      empty: 'Nessun conto con saldo positivo: aggiungi un conto e importa un estratto.',
+      chartLabel: (total: string) =>
+        `Ripartizione del patrimonio per conto e investimenti, totale ${total}`,
+    },
+    trend: {
+      title: 'Andamento del patrimonio',
+      accounts: 'Conti',
+      investments: 'Investimenti',
+      total: 'Totale',
+      date: 'Data',
+      empty: 'Nessun dato nel periodo scelto.',
+      chartLabel: (range: string) => `Andamento del patrimonio ${range}`,
+    },
+    recent: {
+      title: 'Andamento recente',
+      d7: '7 giorni',
+      d30: '30 giorni',
+      y1: '12 mesi',
+    },
+    kpi: {
+      income: 'Entrate',
+      expenses: 'Spese',
+      savings: 'Risparmio',
+      savingsRate: 'Tasso di risparmio',
+      avgExpense: 'Spesa media mensile',
+      liquidity: 'Liquidità',
+      investments: 'Investimenti',
+      roi: 'Rendimento',
+      vsPrevious: 'rispetto al periodo precedente',
+      ofIncome: 'delle entrate',
+      perMonth: 'al mese',
+    },
+    flow: {
+      title: 'Entrate e spese per mese',
+      income: 'Entrate',
+      expense: 'Spese',
+      empty: 'Nessun movimento nel periodo scelto.',
+      chartLabel: (range: string) => `Entrate e spese mese per mese ${range}`,
+    },
+    expenses: {
+      title: 'Spese per categoria',
+      empty: 'Nessuna spesa nel periodo scelto.',
+      total: 'Totale spese',
+    },
+    income: {
+      title: 'Entrate per categoria',
+      empty: 'Nessuna entrata nel periodo scelto.',
+      total: 'Totale entrate',
+    },
+    accounts: {
+      title: 'Saldi dei conti',
+      empty: 'Nessun conto da mostrare.',
+      total: 'Totale',
+    },
+    merchants: {
+      title: 'Dove spendi di più',
+      empty: 'Nessuna spesa nel periodo scelto.',
+      count: (n: number) => (n === 1 ? '1 movimento' : `${n} movimenti`),
+    },
+    investments: {
+      title: 'Investimenti',
+      empty: 'Nessun investimento. Aggiungili dalla sezione Investimenti o importa Trade Republic.',
+      value: 'Valore',
+      gain: 'Guadagno',
+      total: 'Totale',
+      quantity: (q: string) => `${q} quote`,
+    },
+    month: {
+      title: 'Spese del mese',
+      empty: 'Nessuna spesa questo mese.',
+      lastMonth: (amount: string) => `Mese scorso: ${amount}`,
+      percentOfLast: (percent: number) => `${percent}% di quanto speso lo scorso mese`,
+      vsSameDay: 'rispetto allo stesso giorno del mese scorso',
+      ring: (percent: number) => `${percent}% della spesa del mese scorso`,
+    },
+    uncategorized: {
+      title: (n: number) =>
+        n === 1 ? '1 movimento da categorizzare' : `${n} movimenti da categorizzare`,
+      text: 'Scegli la categoria una volta: dal prossimo estratto verrà assegnata da sola.',
+      action: 'Vai ai movimenti',
+    },
+  },
+
   filters: {
     title: 'Filtri',
     period: 'Periodo',

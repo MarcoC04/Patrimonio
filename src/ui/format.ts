@@ -72,3 +72,44 @@ export function formatEuroWhole(minor: number): string {
     Math.round(minor / 100),
   );
 }
+
+export interface MoneyParts {
+  /** "-" per gli importi negativi, altrimenti vuoto. */
+  sign: string;
+  /** Parte intera con i separatori delle migliaia ("90.911"). */
+  whole: string;
+  /** Centesimi con la virgola (",80"). */
+  fraction: string;
+  /** Simbolo della valuta ("€"). */
+  currency: string;
+}
+
+/**
+ * Importo diviso nelle sue parti, per mostrare i centesimi più piccoli: 9091180 → "90.911" + ",80".
+ * Il valore passa a Intl come stringa decimale, senza divisioni in virgola mobile.
+ */
+export function splitMoney(minor: number, currency = 'EUR'): MoneyParts {
+  const negative = minor < 0;
+  const digits = String(Math.abs(minor)).padStart(3, '0');
+  const decimal = `${negative ? '-' : ''}${digits.slice(0, -2)}.${digits.slice(-2)}`;
+  const parts = new Intl.NumberFormat('it-IT', { style: 'currency', currency }).formatToParts(
+    decimal as unknown as number, // Intl accetta stringhe decimali; i tipi TS non lo riflettono ancora
+  );
+  const pick = (type: Intl.NumberFormatPartTypes) =>
+    parts
+      .filter((p) => p.type === type)
+      .map((p) => p.value)
+      .join('');
+  return {
+    sign: negative ? '-' : '',
+    whole:
+      pick('integer') === ''
+        ? '0'
+        : parts
+            .filter((p) => p.type === 'integer' || p.type === 'group')
+            .map((p) => p.value)
+            .join(''),
+    fraction: `${pick('decimal')}${pick('fraction')}`,
+    currency: pick('currency'),
+  };
+}

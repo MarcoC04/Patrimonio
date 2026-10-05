@@ -6,6 +6,7 @@ import {
   formatMonthShort,
   formatTenthsPercent,
   signedMoney,
+  splitMoney,
 } from './format';
 
 const plain = (text: string) => text.replaceAll(' ', ' ');
@@ -74,5 +75,28 @@ describe('formatEuroWhole', () => {
     expect(formatEuroWhole(12345600)).toBe('123.456');
     expect(formatEuroWhole(0)).toBe('0');
     expect(formatEuroWhole(-50000)).toBe('-500');
+  });
+});
+
+describe('splitMoney', () => {
+  it('parte intera, centesimi e simbolo separati: 90.911,80 €', () => {
+    expect(splitMoney(9091180)).toMatchObject({
+      sign: '',
+      whole: '90.911',
+      fraction: ',80',
+      currency: '€',
+    });
+  });
+
+  it('importi piccoli: 0,05 € → intero 0, centesimi ,05', () => {
+    expect(splitMoney(5)).toMatchObject({ whole: '0', fraction: ',05' });
+  });
+
+  it('importi negativi: il segno è a parte', () => {
+    expect(splitMoney(-1234567)).toMatchObject({ sign: '-', whole: '12.345', fraction: ',67' });
+  });
+
+  it('zero', () => {
+    expect(splitMoney(0)).toMatchObject({ sign: '', whole: '0', fraction: ',00' });
   });
 });
