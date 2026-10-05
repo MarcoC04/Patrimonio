@@ -1,58 +1,31 @@
 import { CATEGORY_KINDS, type Category } from '../../data/schema';
-import { UNCATEGORIZED, type TransactionFilter } from '../../domain/ledger';
-import { Field } from '../../ui/Field';
-import { inputClass, secondaryButtonClass } from '../../ui/styles';
+import { UNCATEGORIZED } from '../../domain/ledger';
+import { secondaryButtonClass } from '../../ui/styles';
 import { strings } from '../../ui/strings';
 import { categoryPath, sortedCategories } from '../categories/labels';
 
 interface Props {
-  filter: TransactionFilter;
+  /** Categorie scelte; vuoto = tutte. UNCATEGORIZED per i movimenti senza categoria. */
+  categoryIds: readonly string[];
   categories: readonly Category[];
-  onChange: (filter: TransactionFilter) => void;
+  onChange: (categoryIds: readonly string[]) => void;
 }
 
 const checkboxRow = 'flex min-h-11 items-center gap-3 text-sm';
 
-/** Filtri per intervallo di date e per una o più categorie. */
-export function MovementFilters({ filter, categories, onChange }: Props) {
-  const selected = filter.categoryIds ?? [];
-
-  const toggle = (id: string) => {
-    const next = selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id];
-    onChange({ ...filter, categoryIds: next });
-  };
+/** Filtro per una o più categorie (periodo e conti sono nella barra dei filtri condivisa). */
+export function MovementFilters({ categoryIds, categories, onChange }: Props) {
+  const toggle = (id: string) =>
+    onChange(categoryIds.includes(id) ? categoryIds.filter((x) => x !== id) : [...categoryIds, id]);
 
   const summary =
-    selected.length === 0
+    categoryIds.length === 0
       ? strings.transactions.filters.allCategories
-      : strings.transactions.filters.selectedCategories(selected.length);
+      : strings.transactions.filters.selectedCategories(categoryIds.length);
 
   return (
-    <section aria-label={strings.transactions.filters.title} className="mb-4">
-      <div className="grid grid-cols-2 gap-3 [&>*]:min-w-0">
-        <Field label={strings.transactions.filters.from} htmlFor="filter-from">
-          <input
-            id="filter-from"
-            type="date"
-            value={filter.from ?? ''}
-            max={filter.to || undefined}
-            onChange={(e) => onChange({ ...filter, from: e.target.value })}
-            className={inputClass}
-          />
-        </Field>
-        <Field label={strings.transactions.filters.to} htmlFor="filter-to">
-          <input
-            id="filter-to"
-            type="date"
-            value={filter.to ?? ''}
-            min={filter.from || undefined}
-            onChange={(e) => onChange({ ...filter, to: e.target.value })}
-            className={inputClass}
-          />
-        </Field>
-      </div>
-
-      <details className="mb-3 rounded-lg border border-control bg-surface-2 px-3">
+    <section aria-label={strings.transactions.filters.title} className="mb-4 flex flex-col gap-2">
+      <details className="rounded-xl border border-control bg-surface-2 px-3">
         <summary className="min-h-11 cursor-pointer py-2.5 text-sm font-medium">
           {strings.transactions.filters.categories}: {summary}
         </summary>
@@ -61,7 +34,7 @@ export function MovementFilters({ filter, categories, onChange }: Props) {
             <input
               type="checkbox"
               className="h-5 w-5 accent-accent"
-              checked={selected.includes(UNCATEGORIZED)}
+              checked={categoryIds.includes(UNCATEGORIZED)}
               onChange={() => toggle(UNCATEGORIZED)}
             />
             {strings.transactions.filters.uncategorized}
@@ -79,7 +52,7 @@ export function MovementFilters({ filter, categories, onChange }: Props) {
                     <input
                       type="checkbox"
                       className="h-5 w-5 accent-accent"
-                      checked={selected.includes(category.id)}
+                      checked={categoryIds.includes(category.id)}
                       onChange={() => toggle(category.id)}
                     />
                     {categoryPath(category, categories)}
@@ -91,9 +64,15 @@ export function MovementFilters({ filter, categories, onChange }: Props) {
         </div>
       </details>
 
-      <button type="button" className={secondaryButtonClass} onClick={() => onChange({})}>
-        {strings.transactions.filters.reset}
-      </button>
+      {categoryIds.length > 0 && (
+        <button
+          type="button"
+          className={`${secondaryButtonClass} self-start`}
+          onClick={() => onChange([])}
+        >
+          {strings.transactions.filters.reset}
+        </button>
+      )}
     </section>
   );
 }

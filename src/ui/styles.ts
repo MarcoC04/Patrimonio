@@ -15,6 +15,12 @@ export const inputClass =
 export const alertClass =
   'rounded-xl border-2 border-expense bg-surface-2 p-3 text-sm font-semibold text-expense';
 
+/** Pulsante a sola icona (modifica, elimina…): 44px per il tocco, discreto finché non lo si usa. */
+export const iconButtonClass = (danger = false) =>
+  `inline-flex size-11 items-center justify-center rounded-xl text-muted transition-colors hover:bg-line ${
+    danger ? 'hover:text-expense' : 'hover:text-fg'
+  }`;
+
 /** Pulsante a scelta (periodo, tipo…): selezionato = riempito; non solo il colore cambia, anche il peso. */
 export const segmentClass = (active: boolean) =>
   `inline-flex min-h-9 items-center justify-center rounded-lg px-3 text-sm transition-colors ${

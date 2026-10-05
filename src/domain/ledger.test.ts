@@ -116,6 +116,26 @@ describe('filterTransactions', () => {
     expect(ids(filterTransactions(txs, { to: '2026-01-31' }))).toEqual(['1']);
   });
 
+  it('uno o più conti (OR tra i conti); vuoto = tutti', () => {
+    expect(ids(filterTransactions(txs, { accountIds: ['B'] }))).toEqual(['3']);
+    expect(ids(filterTransactions(txs, { accountIds: ['A', 'B'] }))).toEqual([
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+    ]);
+    expect(ids(filterTransactions(txs, { accountIds: [] }))).toEqual(['1', '2', '3', '4', '5']);
+  });
+
+  it('i conti si combinano con date e categorie (AND)', () => {
+    expect(
+      ids(
+        filterTransactions(txs, { accountIds: ['A'], from: '2026-02-01', categoryIds: ['casa'] }),
+      ),
+    ).toEqual(['2']);
+  });
+
   it('più categorie insieme (OR tra le categorie)', () => {
     expect(ids(filterTransactions(txs, { categoryIds: ['cibo', 'svago'] }))).toEqual([
       '1',

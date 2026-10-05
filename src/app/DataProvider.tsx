@@ -53,6 +53,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (inFlight.current) return inFlight.current;
 
     const run = async () => {
+      // Build di prova (VITE_DEMO=1): dati inventati in memoria, senza foglio né chiave.
+      // Nella versione pubblicata la condizione è sempre falsa e il modulo non viene incluso.
+      if (import.meta.env.VITE_DEMO === '1') {
+        const { buildDemoDataset } = await import('../dev/demoDataset');
+        show({ status: 'ready', data: buildDemoDataset() });
+        return;
+      }
       if (!connection.ok) {
         show({ status: 'setup', message: connection.message });
         return;
@@ -83,8 +90,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const save = useCallback(
     async (changes: ChangeSet) => {
-      if (!connection.ok) throw new Error(connection.message);
-      await connection.repository.save(changes);
+      if (import.meta.env.VITE_DEMO !== '1') {
+        if (!connection.ok) throw new Error(connection.message);
+        await connection.repository.save(changes);
+      }
       const current = dataRef.current;
       if (current) show({ status: 'ready', data: applyChanges(current, changes) });
     },

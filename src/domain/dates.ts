@@ -16,6 +16,29 @@ export function todayIso(now: Date = new Date()): string {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
+/** Somma (o sottrae) giorni a una data ISO, sul calendario e senza fuso: 2026-03-01 −1 → 2026-02-28. */
+export function addDaysIso(iso: string, days: number): string {
+  const [y = 0, m = 1, d = 1] = iso.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d + days));
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Somma (o sottrae) mesi a una data ISO. Se il giorno non esiste nel mese di arrivo si usa
+ * l'ultimo giorno di quel mese: 2026-03-31 −1 mese → 2026-02-28.
+ */
+export function addMonthsIso(iso: string, months: number): string {
+  const [y = 0, m = 1, d = 1] = iso.split('-').map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const lastDay = new Date(
+    Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  const day = Math.min(d, lastDay);
+  return new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), day))
+    .toISOString()
+    .slice(0, 10);
+}
+
 /** "Giovedì 18 giugno": la data di oggi per le intestazioni, in italiano. */
 export function todayLongIt(now: Date = new Date()): string {
   const text = new Intl.DateTimeFormat('it-IT', {

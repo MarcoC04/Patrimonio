@@ -1,4 +1,5 @@
 import type { Category } from '../../data/schema';
+import { categoryColors, palette } from '../../ui/theme';
 
 /** "Alimentari" oppure "Alimentari › Bar" per le sottocategorie. */
 export function categoryPath(category: Category, all: readonly Category[]): string {
@@ -14,4 +15,20 @@ export function sortedCategories(all: readonly Category[], kind: Category['kind'
     .filter((c) => c.parent_id === null)
     .sort(byName)
     .flatMap((parent) => [parent, ...ofKind.filter((c) => c.parent_id === parent.id).sort(byName)]);
+}
+
+/** Colore stabile di una categoria (dal suo posto nell'elenco); grigio per giroconti e senza categoria. */
+export function categoryColorOf(
+  categoryId: string | null,
+  all: readonly Category[],
+  isTransfer = false,
+): string {
+  if (isTransfer) return categoryColors[categoryColors.length - 1] ?? palette.muted;
+  if (categoryId === null) return palette.muted;
+  const index = Math.max(
+    0,
+    all.findIndex((c) => c.id === categoryId),
+  );
+  // L'ultimo colore (grigio-blu) è riservato ai giroconti.
+  return categoryColors[index % (categoryColors.length - 1)] ?? palette.muted;
 }

@@ -57,7 +57,10 @@ export interface TransactionFilter {
   to?: string;
   /** Una o più categorie; UNCATEGORIZED per i movimenti senza categoria. Vuoto o assente = tutte. */
   categoryIds?: readonly string[];
+  /** Un solo conto (per compatibilità); per più conti usa `accountIds`. */
   accountId?: string;
+  /** Uno o più conti. Vuoto o assente = tutti. */
+  accountIds?: readonly string[];
 }
 
 /** Applica i filtri insieme (AND). Le date ISO si confrontano come testo. */
@@ -66,10 +69,13 @@ export function filterTransactions<
 >(transactions: readonly T[], filter: TransactionFilter): T[] {
   const categories =
     filter.categoryIds && filter.categoryIds.length > 0 ? new Set(filter.categoryIds) : null;
+  const accounts =
+    filter.accountIds && filter.accountIds.length > 0 ? new Set(filter.accountIds) : null;
   return transactions.filter((t) => {
     if (filter.from && t.date < filter.from) return false;
     if (filter.to && t.date > filter.to) return false;
     if (filter.accountId && t.account_id !== filter.accountId) return false;
+    if (accounts && !accounts.has(t.account_id)) return false;
     if (categories && !categories.has(t.category_id ?? UNCATEGORIZED)) return false;
     return true;
   });

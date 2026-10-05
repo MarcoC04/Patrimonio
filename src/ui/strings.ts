@@ -13,6 +13,25 @@ export const strings = {
     newMovement: 'Nuovo movimento',
   },
 
+  filters: {
+    title: 'Filtri',
+    period: 'Periodo',
+    presets: {
+      '1M': '1M',
+      '3M': '3M',
+      '6M': '6M',
+      YTD: 'Quest’anno',
+      '1A': '1A',
+      MAX: 'Max',
+      custom: 'Personalizzato',
+    },
+    from: 'Dal',
+    to: 'Al',
+    accounts: 'Conti',
+    allAccounts: 'Tutti i conti',
+    reset: 'Azzera filtri',
+  },
+
   subtitles: {
     dashboard: 'Il quadro dei tuoi conti e dei tuoi investimenti.',
     transactions: 'Tutti i movimenti, con filtri per periodo, conto e categoria.',

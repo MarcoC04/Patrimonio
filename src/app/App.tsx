@@ -4,6 +4,7 @@ import { PlaceholderPage } from '../features/PlaceholderPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import { TransactionsPage } from '../features/transactions/TransactionsPage';
 import { strings } from '../ui/strings';
+import { FiltersProvider } from '../features/filters/FiltersProvider';
 import { DataProvider } from './DataProvider';
 import { LockProvider } from './LockProvider';
 import { LockGate } from './PinScreen';
@@ -28,22 +29,24 @@ export function App() {
     <LockProvider>
       <LockGate>
         <DataProvider>
-          <HashRouter>
-            <Suspense fallback={<p className="p-4 text-muted">{strings.common.loading}</p>}>
-              <Routes>
-                <Route element={<Shell />}>
-                  <Route index element={<DashboardPage />} />
-                  <Route path="movimenti" element={<TransactionsPage />} />
-                  <Route
-                    path="budget"
-                    element={<PlaceholderPage title={budgets.title} empty={budgets.empty} />}
-                  />
-                  <Route path="investimenti" element={<InvestmentsPage />} />
-                  <Route path="impostazioni" element={<SettingsPage />} />
-                </Route>
-              </Routes>
-            </Suspense>
-          </HashRouter>
+          <FiltersProvider>
+            <HashRouter>
+              <Suspense fallback={<p className="p-4 text-muted">{strings.common.loading}</p>}>
+                <Routes>
+                  <Route element={<Shell />}>
+                    <Route index element={<DashboardPage />} />
+                    <Route path="movimenti" element={<TransactionsPage />} />
+                    <Route
+                      path="budget"
+                      element={<PlaceholderPage title={budgets.title} empty={budgets.empty} />}
+                    />
+                    <Route path="investimenti" element={<InvestmentsPage />} />
+                    <Route path="impostazioni" element={<SettingsPage />} />
+                  </Route>
+                </Routes>
+              </Suspense>
+            </HashRouter>
+          </FiltersProvider>
         </DataProvider>
       </LockGate>
     </LockProvider>

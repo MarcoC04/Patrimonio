@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useData } from '../../app/DataProvider';
 import { softDelete, type Dataset } from '../../data/repository';
 import type { Transaction } from '../../data/schema';
@@ -14,10 +14,14 @@ import { Card, EmptyState } from '../../ui/Card';
 import { PageHeader } from '../../ui/PageHeader';
 import { userMessage } from '../../ui/errors';
 import { signedMoney } from '../../ui/format';
-import { alertClass, buttonClass, dangerButtonClass, secondaryButtonClass } from '../../ui/styles';
+import { ActionIcon } from '../../ui/icons';
+import { Avatar } from '../../ui/Avatar';
+import { alertClass, buttonClass, iconButtonClass, secondaryButtonClass } from '../../ui/styles';
 import { strings } from '../../ui/strings';
-import { categoryPath } from '../categories/labels';
+import { categoryColorOf, categoryPath } from '../categories/labels';
 import { DataGate } from '../DataGate';
+import { FilterBar } from '../filters/FilterBar';
+import { useFilters } from '../filters/FiltersProvider';
 import { ImportFlow } from '../import/ImportFlow';
 import { MovementFilters } from './MovementFilters';
 import { MovementForm } from './MovementForm';
@@ -50,7 +54,8 @@ function Summary({ transactions }: { transactions: readonly Transaction[] }) {
 
 function TransactionsView({ data }: { data: Dataset }) {
   const { save } = useData();
-  const [filter, setFilter] = useState<TransactionFilter>({});
+  const { range, accountIds, period } = useFilters();
+  const [categoryIds, setCategoryIds] = useState<readonly string[]>([]);
   const [editing, setEditing] = useState<Transaction | 'new' | null>(null);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [notice, setNotice] = useState<string | null>(null);
@@ -81,15 +86,27 @@ function TransactionsView({ data }: { data: Dataset }) {
     return labels;
   }, [data.transactions, accountNames]);
 
+  // Periodo e conti sono condivisi con la dashboard; le categorie valgono solo qui.
+  // Con "Max" non c'è nemmeno il limite finale: si vedono anche i movimenti con data futura.
+  const filter = useMemo<TransactionFilter>(
+    () => ({
+      ...(range.from === null ? {} : { from: range.from }),
+      ...(period.preset === 'MAX' ? {} : { to: range.to }),
+      accountIds,
+      categoryIds,
+    }),
+    [range.from, range.to, period.preset, accountIds, categoryIds],
+  );
+
   const filtered = useMemo(
     () => sortNewestFirst(filterTransactions(data.transactions, filter)),
     [data.transactions, filter],
   );
 
-  const changeFilter = (next: TransactionFilter) => {
-    setFilter(next);
+  // Cambiando filtro si riparte dalla prima pagina dell'elenco.
+  useEffect(() => {
     setVisible(PAGE_SIZE);
-  };
+  }, [filter]);
 
   const remove = async (tx: Transaction) => {
     setNotice(null);
@@ -159,7 +176,12 @@ function TransactionsView({ data }: { data: Dataset }) {
         </p>
       )}
 
-      <MovementFilters filter={filter} categories={data.categories} onChange={changeFilter} />
+      <FilterBar accounts={data.accounts} />
+      <MovementFilters
+        categoryIds={categoryIds}
+        categories={data.categories}
+        onChange={setCategoryIds}
+      />
       <Summary transactions={filtered} />
 
       <Card title={strings.transactions.title}>
@@ -180,51 +202,54 @@ function TransactionsView({ data }: { data: Dataset }) {
               return (
                 <li
                   key={tx.id}
-                  className="flex flex-col gap-2 border-b border-line-soft py-3 last:border-b-0"
+                  className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 border-b border-line-soft py-3 last:border-b-0 sm:grid-cols-[auto_1fr_auto_auto]"
                 >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{tx.description || detail}</p>
-                      <p className="text-xs text-muted">
-                        {formatDateIt(tx.date)} · {accountNames.get(tx.account_id) ?? '?'} ·{' '}
-                        {detail}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p
-                        className={`font-semibold ${tx.amount_minor < 0 ? 'text-expense' : 'text-income'}`}
-                      >
-                        {signedMoney(tx.amount_minor, tx.currency)}
-                      </p>
-                      {tx.currency !== 'EUR' && (
-                        <p className="text-xs text-muted">
-                          {strings.transactions.inEuro(signedMoney(tx.amount_base_minor))}
-                        </p>
-                      )}
-                    </div>
+                  <Avatar
+                    label={tx.description || detail}
+                    color={categoryColorOf(tx.category_id, data.categories, isTransfer)}
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{tx.description || detail}</p>
+                    <p className="truncate text-xs text-muted">
+                      {formatDateIt(tx.date)} · {accountNames.get(tx.account_id) ?? '?'} · {detail}
+                    </p>
+                    {isTransfer && (
+                      <p className="text-xs text-muted">{strings.transactions.transferEditHint}</p>
+                    )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="shrink-0 text-right">
+                    <p
+                      className={`font-semibold ${tx.amount_minor < 0 ? 'text-expense' : 'text-income'}`}
+                    >
+                      {signedMoney(tx.amount_minor, tx.currency)}
+                    </p>
+                    {tx.currency !== 'EUR' && (
+                      <p className="text-xs text-muted">
+                        {strings.transactions.inEuro(signedMoney(tx.amount_base_minor))}
+                      </p>
+                    )}
+                  </div>
+                  <div className="col-span-3 flex justify-end sm:col-span-1">
                     {!isTransfer && (
                       <button
                         type="button"
-                        className={secondaryButtonClass}
+                        className={iconButtonClass()}
+                        aria-label={`${strings.common.edit}: ${tx.description || detail}`}
+                        title={strings.common.edit}
                         onClick={() => setEditing(tx)}
                       >
-                        {strings.common.edit}
+                        <ActionIcon name="edit" />
                       </button>
                     )}
                     <button
                       type="button"
-                      className={dangerButtonClass}
+                      className={iconButtonClass(true)}
+                      aria-label={`${strings.common.delete}: ${tx.description || detail}`}
+                      title={strings.common.delete}
                       onClick={() => void remove(tx)}
                     >
-                      {strings.common.delete}
+                      <ActionIcon name="trash" />
                     </button>
-                    {isTransfer && (
-                      <span className="text-xs text-muted">
-                        {strings.transactions.transferEditHint}
-                      </span>
-                    )}
                   </div>
                 </li>
               );
