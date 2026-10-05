@@ -31,15 +31,15 @@ function DashboardView({ data }: { data: Dataset }) {
       <UncategorizedBanner count={model.uncategorized} />
 
       {/* Prima di tutto: il patrimonio e la torta che lo divide tra conti e investimenti */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 [&>section]:h-full">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2 [&>section]:h-full">
           <HeroCard model={model} accounts={data.accounts} rates={rates} data={data} />
         </div>
         <WealthDonutCard model={model} accounts={data.accounts} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
           <TrendCard model={model} hasAccounts={model.accounts.length > 0} />
         </div>
         <RecentCard model={model} />
@@ -47,8 +47,8 @@ function DashboardView({ data }: { data: Dataset }) {
 
       <KpiGrid model={model} />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
           <BreakdownCard
             title={t.expenses.title}
             rows={model.expenseRows}
@@ -60,8 +60,8 @@ function DashboardView({ data }: { data: Dataset }) {
         <MonthCard model={model} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
           <FlowCard model={model} />
         </div>
         <BreakdownCard
@@ -73,7 +73,7 @@ function DashboardView({ data }: { data: Dataset }) {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <AccountsBalanceCard model={model} />
         <MerchantsCard model={model} />
         <InvestmentsOverviewCard model={model} data={data} />

@@ -51,7 +51,12 @@ export function buildDemoDataset(now: Date = new Date()): Dataset {
   });
   const revolut = account('Revolut', 'Revolut', 'checking', 120000);
   const fineco = account('Fineco', 'Fineco', 'checking', 450000);
-  const trade = account('Trade Republic', 'Trade Republic', 'savings', 300000);
+  const trade = account(
+    'Trade Republic Conto Deposito Remunerato Personale',
+    'Trade Republic',
+    'savings',
+    300000,
+  );
 
   const categories = buildDefaultCategories(now, id);
   const cat = (name: string, kind: 'expense' | 'income' | 'transfer') =>
@@ -97,6 +102,12 @@ export function buildDemoDataset(now: Date = new Date()): Dataset {
     ['Cinema Odeon', 'Svago', 900, 2400],
     ['Alipay', 'Shopping', 500, 2500],
     ['Bar Centrale', 'Ristoranti', 150, 900],
+    [
+      'PAGAMENTO POS CARTA DI DEBITO 4821 SUPERMERCATI ESEMPIO SPA VIA ROMA MILANO',
+      'Alimentari',
+      1500,
+      6000,
+    ],
   ];
 
   for (let d = -240; d <= 0; d++) {
@@ -149,7 +160,11 @@ export function buildDemoDataset(now: Date = new Date()): Dataset {
     currency: 'EUR',
     price_source: 'manual',
   });
-  const world = asset('Core MSCI World (Acc)', 'IE000BI8OT95', 'etf');
+  const world = asset(
+    'Amundi Core MSCI World UCITS ETF Acc EUR Hedged Distributing',
+    'IE000BI8OT95',
+    'etf',
+  );
   const bonds = asset('Obbligazioni Euro Gov', 'IE00B3FH7618', 'bond');
   const crypto = asset('Bitcoin', '', 'crypto');
   const assets = [world, bonds, crypto];

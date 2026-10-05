@@ -114,7 +114,7 @@ export function HoldingForm({ data, onDone }: { data: Dataset; onDone: () => voi
           autoComplete="off"
         />
       </Field>
-      <div className="grid gap-x-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-3 sm:grid-cols-2">
         <Field label={t.symbol} htmlFor="holding-symbol">
           <input
             id="holding-symbol"
@@ -173,7 +173,7 @@ export function HoldingForm({ data, onDone }: { data: Dataset; onDone: () => voi
           autoComplete="off"
         />
       </Field>
-      <div className="grid gap-x-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-3 sm:grid-cols-2">
         <Field label={`${t.purchasePrice} (${currency})`} htmlFor="holding-price">
           <input
             id="holding-price"

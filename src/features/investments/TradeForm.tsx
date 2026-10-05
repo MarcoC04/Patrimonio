@@ -102,7 +102,7 @@ export function TradeForm({
         </p>
       )}
 
-      <div className="grid gap-x-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-3 sm:grid-cols-2">
         <Field
           label={t.quantity}
           htmlFor="trade-quantity"

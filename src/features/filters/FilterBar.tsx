@@ -22,7 +22,7 @@ export function FilterBar({ accounts }: { accounts: readonly Account[] }) {
         <div
           role="group"
           aria-label={t.period}
-          className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-line bg-surface-2 p-1"
+          className="flex max-w-full flex-wrap gap-1 rounded-xl border border-line bg-surface-2 p-1"
         >
           {PERIOD_PRESETS.map((preset: PeriodPreset) => (
             <button

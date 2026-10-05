@@ -77,7 +77,7 @@ export function PriceForm({
           {error}
         </p>
       )}
-      <div className="grid gap-x-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-3 sm:grid-cols-2">
         <Field label={`${t.price} (${asset.currency})`} htmlFor="price-value">
           <input
             id="price-value"

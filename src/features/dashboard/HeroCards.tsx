@@ -246,7 +246,7 @@ export function TrendCard({ model, hasAccounts }: { model: OverviewModel; hasAcc
 export function RecentCard({ model }: { model: OverviewModel }) {
   return (
     <Card title={t.recent.title}>
-      <ul className="grid gap-3">
+      <ul className="grid grid-cols-1 gap-3">
         {model.recent.map((item) => {
           const up = item.change.deltaMinor >= 0;
           return (

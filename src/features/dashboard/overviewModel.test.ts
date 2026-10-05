@@ -76,7 +76,7 @@ describe('buildOverview: i numeri devono tornare tra loro', () => {
   });
 
   it('gli investimenti seguono il conto che li detiene', () => {
-    const trade = data.accounts.find((a) => a.name === 'Trade Republic');
+    const trade = data.accounts.find((a) => a.name.startsWith('Trade Republic'));
     if (!trade) throw new Error('conto demo mancante');
     const only = model('1A', [trade.id]);
     expect(only.wealth.investmentsMinor).toBeGreaterThan(0);
