@@ -522,7 +522,7 @@ export const strings = {
       after: (amount: string) => `Dopo l’importazione il saldo del conto sarà ${amount}.`,
       matches: 'Il saldo torna con i movimenti già registrati.',
       mismatch: (difference: string) =>
-        `Il saldo dell’estratto differisce di ${difference} da quello calcolato dai movimenti già registrati: forse manca un estratto o qualche movimento. Confermando, il saldo si riallinea comunque all’estratto.`,
+        `Il saldo dell’estratto differisce di ${difference} da quello calcolato dai movimenti già registrati: forse manca un estratto o qualche movimento, oppure il saldo iniziale era stato impostato a mano. Confermando, il saldo si riallinea comunque all’estratto.`,
       openingDerived: (opening: string) => `Saldo iniziale del conto ricavato: ${opening}.`,
       notAnchored:
         'Senza saldo a fine estratto, il saldo del conto cambia solo della somma dei movimenti importati.',

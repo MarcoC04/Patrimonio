@@ -123,7 +123,9 @@ export function computeBalanceUpdate(input: BalanceInput): BalanceUpdate {
     backdated,
     expectedMinor,
     differenceMinor,
-    differenceMeaningful: anchored && known,
+    // Un saldo ricavato da un estratto ma senza più alcun movimento sul conto (importazione
+    // eliminata) è un residuo: confrontarlo col nuovo estratto darebbe una differenza inventata.
+    differenceMeaningful: anchored && known && !(alreadyAnchored && existing.length === 0),
   };
 }
 

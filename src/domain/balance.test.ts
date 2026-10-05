@@ -255,6 +255,60 @@ describe('saldo a inizio estratto', () => {
   });
 });
 
+describe('saldo residuo di un’importazione eliminata', () => {
+  it('senza più movimenti sul conto non c’è nessuna differenza da segnalare, e il saldo si ricava di nuovo', () => {
+    // Il conto ha ancora il saldo iniziale di un vecchio import (613,00 €, segnato come ricavato)
+    // ma nessun movimento. Nuovo estratto: −9,31 e −9,31, saldo finale dichiarato 622,10 €.
+    // Il confronto con il residuo darebbe una differenza inventata: va ignorato.
+    const result = computeBalanceUpdate(
+      base({
+        account: { opening_balance_minor: 61300, opening_date: '2026-09-01' },
+        existing: [],
+        added: [
+          { date: '2026-09-01', amountMinor: -931 },
+          { date: '2026-09-02', amountMinor: -931 },
+        ],
+        declaredMinor: 62210,
+        anchorDate: '2026-09-02',
+        alreadyAnchored: true,
+      }),
+    );
+    expect(result.differenceMeaningful).toBe(false);
+    // saldo iniziale nuovo = 622,10 + 18,62 = 640,72 €
+    expect(result.openingBalanceMinor).toBe(64072);
+  });
+
+  it('con movimenti ancora presenti la differenza resta un segnale valido', () => {
+    const result = computeBalanceUpdate(
+      base({
+        account: { opening_balance_minor: 61300, opening_date: '2026-09-01' },
+        existing: [{ date: '2026-09-01', amountMinor: -931 }],
+        added: [{ date: '2026-09-02', amountMinor: -931 }],
+        declaredMinor: 62210,
+        anchorDate: '2026-09-02',
+        alreadyAnchored: true,
+      }),
+    );
+    expect(result.differenceMeaningful).toBe(true);
+    // atteso 613,00 − 9,31 − 9,31 = 594,38; dichiarato 622,10 → differenza 27,72 €
+    expect(result.differenceMinor).toBe(2772);
+  });
+
+  it('un saldo iniziale scritto a mano (non ricavato) senza movimenti viene ancora confrontato', () => {
+    const result = computeBalanceUpdate(
+      base({
+        account: { opening_balance_minor: 61300, opening_date: '2026-09-01' },
+        existing: [],
+        added: [{ date: '2026-09-02', amountMinor: -931 }],
+        declaredMinor: 62210,
+        anchorDate: '2026-09-02',
+        alreadyAnchored: false,
+      }),
+    );
+    expect(result.differenceMeaningful).toBe(true);
+  });
+});
+
 describe('statementEndBalance', () => {
   it('prende il saldo dell’ultima riga completata; a pari data, l’ultima del file', () => {
     expect(
