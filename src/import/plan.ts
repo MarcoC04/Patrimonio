@@ -48,6 +48,8 @@ export interface Plan {
   endBalanceMinor: number | null;
   /** Giorno a cui si riferisce il saldo di fine estratto (ultimo giorno con righe complete). */
   anchorDate: string | null;
+  /** Primo giorno coperto dall'estratto (righe complete, anche se già importate). */
+  startDate: string | null;
   /** Il saldo iniziale di questo conto è già stato ricavato da un estratto precedente. */
   alreadyAnchored: boolean;
   /** Lo stesso file (stesso contenuto) risulta già importato su questo conto. */
@@ -145,11 +147,14 @@ export async function buildPlan(
       date: row.date,
       balanceMinor: row.balanceMinor,
       completed: completed(row),
+      ...(row.sortKey === undefined ? {} : { sortKey: row.sortKey }),
     })),
   );
   const completedDates = input.rows.filter(completed).map((row) => row.date);
   const lastDate =
     completedDates.length === 0 ? null : completedDates.reduce((a, b) => (a > b ? a : b));
+  const firstDate =
+    completedDates.length === 0 ? null : completedDates.reduce((a, b) => (a < b ? a : b));
   return {
     ok: true,
     plan: {
@@ -157,6 +162,7 @@ export async function buildPlan(
       fileAlreadyImported,
       endBalanceMinor: end?.balanceMinor ?? null,
       anchorDate: end?.date ?? lastDate,
+      startDate: firstDate,
       alreadyAnchored: dataset.meta[anchoredKey(accountId)] === '1',
     },
   };
@@ -170,6 +176,7 @@ export function previewBalance(input: {
   declaredMinor: number | null;
   anchorDate: string | null;
   initialMinor?: number | null;
+  statementStart?: string | null;
 }): BalanceUpdate | null {
   const account = input.dataset.accounts.find((a) => a.id === input.accountId);
   if (!account) return null;
@@ -184,6 +191,7 @@ export function previewBalance(input: {
     declaredMinor: input.declaredMinor,
     anchorDate: input.anchorDate,
     initialMinor: input.initialMinor ?? null,
+    statementStart: input.statementStart ?? null,
     alreadyAnchored: input.dataset.meta[anchoredKey(input.accountId)] === '1',
   });
 }
@@ -202,6 +210,8 @@ export interface ImportInput {
   anchorDate?: string | null;
   /** Saldo prima della prima riga dell'estratto (alternativa al saldo finale). */
   initialMinor?: number | null;
+  /** Primo giorno coperto dall'estratto (dal piano). */
+  statementStart?: string | null;
 }
 
 export interface ImportSummary {
@@ -265,6 +275,7 @@ export function buildImport(
     declaredMinor: input.declaredMinor ?? null,
     anchorDate: input.anchorDate ?? null,
     initialMinor: input.initialMinor ?? null,
+    statementStart: input.statementStart ?? null,
   });
   const ctx = {
     accounts: dataset.accounts.map((a) =>

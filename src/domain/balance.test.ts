@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { computeBalanceUpdate, statementEndBalance, type BalanceInput } from './balance';
+import {
+  computeBalanceUpdate,
+  openingForCurrentBalance,
+  statementEndBalance,
+  type BalanceInput,
+} from './balance';
 
 const base = (over: Partial<BalanceInput> = {}): BalanceInput => ({
   account: { opening_balance_minor: 0, opening_date: '2026-10-04' },
@@ -283,5 +288,81 @@ describe('statementEndBalance', () => {
         { date: '2026-09-01', balanceMinor: 100, completed: true },
       ]),
     ).toEqual({ balanceMinor: 300, date: '2026-09-03' });
+  });
+});
+
+describe('ordine delle righe dello stesso giorno', () => {
+  it('con l’orario completo vince il completamento più tardi, non l’ultima riga del file', () => {
+    expect(
+      statementEndBalance([
+        { date: '2026-09-30', balanceMinor: 9000, completed: true, sortKey: '2026-09-30 14:00:00' },
+        {
+          date: '2026-09-30',
+          balanceMinor: 10000,
+          completed: true,
+          sortKey: '2026-09-30 13:00:00',
+        },
+      ]),
+    ).toEqual({ balanceMinor: 9000, date: '2026-09-30' });
+  });
+
+  it('a pari orario vince l’ultima riga del file', () => {
+    expect(
+      statementEndBalance([
+        { date: '2026-09-30', balanceMinor: 100, completed: true, sortKey: '2026-09-30 03:17:04' },
+        { date: '2026-09-30', balanceMinor: 90, completed: true, sortKey: '2026-09-30 03:17:04' },
+      ]),
+    ).toEqual({ balanceMinor: 90, date: '2026-09-30' });
+  });
+});
+
+describe('saldo a inizio estratto con righe già importate', () => {
+  it('usa il primo giorno dell’estratto, non la prima riga nuova', () => {
+    // Estratto dal 01/09; esistono già i movimenti del 01/09 (+100,00) e 02/09 (−30,00).
+    // Nuova riga solo il 05/09 (+10,00). Iniziale dichiarato 1.000,00 € al 01/09:
+    // saldo iniziale = 1.000,00 − 0 (nulla prima del 01/09) = 1.000,00; dopo tutto 1.080,00 €.
+    const result = computeBalanceUpdate(
+      base({
+        existing: [
+          { date: '2026-09-01', amountMinor: 10000 },
+          { date: '2026-09-02', amountMinor: -3000 },
+        ],
+        added: [{ date: '2026-09-05', amountMinor: 1000 }],
+        initialMinor: 100000,
+        statementStart: '2026-09-01',
+      }),
+    );
+    expect(result.openingBalanceMinor).toBe(100000);
+    expect(result.openingBalanceMinor + 10000 - 3000 + 1000).toBe(108000);
+  });
+
+  it('senza righe nuove si può riallineare lo stesso', () => {
+    const result = computeBalanceUpdate(
+      base({
+        existing: [{ date: '2026-09-01', amountMinor: -931 }],
+        added: [],
+        initialMinor: 50000,
+        statementStart: '2026-09-01',
+      }),
+    );
+    expect(result.anchored).toBe(true);
+    expect(result.openingBalanceMinor).toBe(50000);
+    expect(result.changed).toBe(true);
+  });
+});
+
+describe('openingForCurrentBalance', () => {
+  it('saldo reale meno la somma dei movimenti', () => {
+    // movimenti +100,00 −30,00 −9,31 = +60,69; reale 250,00 → iniziale 189,31
+    expect(
+      openingForCurrentBalance(
+        [{ amountMinor: 10000 }, { amountMinor: -3000 }, { amountMinor: -931 }],
+        25000,
+      ),
+    ).toBe(18931);
+  });
+
+  it('senza movimenti il saldo iniziale è il saldo reale', () => {
+    expect(openingForCurrentBalance([], 12345)).toBe(12345);
   });
 });

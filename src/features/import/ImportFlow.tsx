@@ -46,6 +46,7 @@ interface Loaded {
   /** Il conto ha già un saldo ricavato da estratti: il saldo prosegue da solo. */
   alreadyAnchored: boolean;
   anchorDate: string | null;
+  startDate: string | null;
 }
 
 /**
@@ -109,6 +110,7 @@ export function ImportFlow({ data, onDone }: Props) {
           planned.plan.endBalanceMinor === null && !planned.plan.alreadyAnchored ? 'start' : 'end',
         alreadyAnchored: planned.plan.alreadyAnchored,
         anchorDate: planned.plan.anchorDate,
+        startDate: planned.plan.startDate,
       });
     } catch (e) {
       setError(userMessage(e));
@@ -173,6 +175,7 @@ export function ImportFlow({ data, onDone }: Props) {
         declaredMinor,
         initialMinor,
         anchorDate: loaded.anchorDate,
+        statementStart: loaded.startDate,
       })
     : null;
   // Saldo del conto dopo l'importazione: saldo iniziale + tutti i movimenti (vecchi e nuovi).
@@ -192,7 +195,8 @@ export function ImportFlow({ data, onDone }: Props) {
       setError(t.balance.invalid);
       return;
     }
-    if (selected.length === 0) {
+    // Senza righe nuove si può comunque riallineare il saldo (es. file già importato).
+    if (selected.length === 0 && !balance?.changed) {
       setError(t.nothingSelected);
       return;
     }
@@ -206,6 +210,7 @@ export function ImportFlow({ data, onDone }: Props) {
       declaredMinor,
       initialMinor,
       anchorDate: loaded.anchorDate,
+      statementStart: loaded.startDate,
     });
     if (!built.ok) {
       const byRow = new Map<number, string[]>();
@@ -383,7 +388,11 @@ export function ImportFlow({ data, onDone }: Props) {
             disabled={busy !== null}
             onClick={() => void confirm()}
           >
-            {busy === 'saving' ? strings.common.saving : t.confirm(selected.length)}
+            {busy === 'saving'
+              ? strings.common.saving
+              : selected.length === 0 && balance?.changed
+                ? t.confirmBalanceOnly
+                : t.confirm(selected.length)}
           </button>
           <button
             type="button"

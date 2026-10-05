@@ -64,6 +64,8 @@ export const revolutParser: StatementParser = {
         externalId: null,
         trade: null,
         balanceMinor: technicalAmountToMinor(cell(cells, header, 'Saldo')),
+        sortKey:
+          cell(cells, header, 'Data di completamento') || cell(cells, header, 'Data di inizio'),
         warnings,
       });
     }

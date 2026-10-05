@@ -58,6 +58,11 @@ export interface ImportedRow {
   transfer?: boolean;
   /** Saldo del conto DOPO questa riga, se l'estratto lo riporta (Revolut: colonna Saldo). */
   balanceMinor: number | null;
+  /**
+   * Orario completo del movimento, per ordinare le righe dello stesso giorno come fa la banca
+   * (Revolut elenca per data di inizio, ma il saldo segue il completamento).
+   */
+  sortKey?: string;
   warnings: RowWarning[];
 }
 

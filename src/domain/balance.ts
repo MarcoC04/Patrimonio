@@ -35,6 +35,11 @@ export interface BalanceInput {
    * (lo scrive l'utente quando il file non riporta alcun saldo, es. Trade Republic).
    */
   initialMinor?: number | null;
+  /**
+   * Primo giorno coperto dall'estratto (anche se le sue righe sono già importate). Con il saldo
+   * a inizio estratto è il giorno da cui parte quel saldo; senza, si usa la prima riga nuova.
+   */
+  statementStart?: string | null;
   /** Il saldo iniziale è già stato ricavato da un estratto precedente. */
   alreadyAnchored: boolean;
 }
@@ -67,6 +72,14 @@ export function computeBalanceUpdate(input: BalanceInput): BalanceUpdate {
   const addedDates = added.map((m) => m.date).filter(isIsoDate);
   const earliest = addedDates.length === 0 ? null : addedDates.reduce((a, b) => (a < b ? a : b));
 
+  const statementStart = input.statementStart ?? null;
+  const start =
+    statementStart !== null && isIsoDate(statementStart)
+      ? earliest !== null && earliest < statementStart
+        ? earliest
+        : statementStart
+      : earliest;
+
   let openingDate = account.opening_date;
   let opening = account.opening_balance_minor;
   let backdated = false;
@@ -93,9 +106,9 @@ export function computeBalanceUpdate(input: BalanceInput): BalanceUpdate {
     differenceMinor = declaredMinor - expectedMinor;
     opening = declaredMinor - movements;
     anchored = true;
-  } else if (initialMinor !== null && earliest !== null) {
+  } else if (initialMinor !== null && start !== null) {
     // Saldo a inizio estratto: vale prima della prima riga, quindi conta solo ciò che c'era prima.
-    const movements = sumMinor(existing.filter((m) => m.date < earliest).map((m) => m.amountMinor));
+    const movements = sumMinor(existing.filter((m) => m.date < start).map((m) => m.amountMinor));
     expectedMinor = opening + movements;
     differenceMinor = initialMinor - expectedMinor;
     opening = initialMinor - movements;
@@ -115,17 +128,36 @@ export function computeBalanceUpdate(input: BalanceInput): BalanceUpdate {
 }
 
 /**
+ * Saldo iniziale che fa risultare il conto esattamente a `currentMinor` oggi: saldo reale meno la
+ * somma dei movimenti registrati. Serve a riallineare un conto quando il saldo non torna.
+ */
+export function openingForCurrentBalance(
+  movements: readonly { amountMinor: number }[],
+  currentMinor: number,
+): number {
+  return currentMinor - sumMinor(movements.map((m) => m.amountMinor));
+}
+
+/**
  * Saldo di fine estratto dalle righe, se l'estratto lo riporta: il saldo dell'ultima riga
  * completata (a parità di data, l'ultima del file), con il giorno a cui si riferisce.
  */
 export function statementEndBalance(
-  rows: readonly { date: string; balanceMinor: number | null; completed: boolean }[],
+  rows: readonly {
+    date: string;
+    balanceMinor: number | null;
+    completed: boolean;
+    /** Orario completo: a pari giorno vince il più tardi; se manca, l'ultima riga del file. */
+    sortKey?: string;
+  }[],
 ): { balanceMinor: number; date: string } | null {
-  let best: { balanceMinor: number; date: string } | null = null;
+  let best: { balanceMinor: number; date: string; key: string } | null = null;
   for (const row of rows) {
     if (!row.completed || row.balanceMinor === null) continue;
-    if (best === null || row.date >= best.date)
-      best = { balanceMinor: row.balanceMinor, date: row.date };
+    const key = row.sortKey ?? row.date;
+    if (best === null || row.date > best.date || (row.date === best.date && key >= best.key)) {
+      best = { balanceMinor: row.balanceMinor, date: row.date, key };
+    }
   }
-  return best;
+  return best ? { balanceMinor: best.balanceMinor, date: best.date } : null;
 }

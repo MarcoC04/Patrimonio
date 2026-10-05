@@ -316,6 +316,10 @@ export const strings = {
     openingBalance: 'Saldo iniziale',
     openingBalanceHint:
       'Facoltativo: se lo lasci vuoto lo ricava l’importazione degli estratti conto (esempio: 1.500,00).',
+    currentBalance: 'Saldo reale oggi (facoltativo)',
+    currentBalanceHint:
+      'Se il saldo del conto non torna, scrivi qui quello che il conto ha davvero oggi: l’app ricalcola da sola il saldo iniziale.',
+    currentBalanceInvalid: 'Saldo non valido (esempio: 1.234,56).',
     openingDate: 'Data del saldo iniziale',
     openingDateHint:
       'Si sposta da sola alla prima riga quando importi un estratto con movimenti precedenti.',
@@ -527,6 +531,7 @@ export const strings = {
       count === 1
         ? 'C’è 1 riga da correggere (o togliere dall’importazione). Nulla è stato salvato.'
         : `Ci sono ${count} righe da correggere (o togliere dall’importazione). Nulla è stato salvato.`,
+    confirmBalanceOnly: 'Aggiorna solo il saldo',
     nothingSelected: 'Nessuna riga selezionata da importare.',
     confirm: (count: number) => `Importa ${count} ${count === 1 ? 'riga' : 'righe'}`,
     done: (transactions: number, trades: number) =>

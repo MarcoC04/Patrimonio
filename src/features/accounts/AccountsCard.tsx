@@ -12,8 +12,9 @@ import {
 import { todayIso } from '../../domain/dates';
 import { accountUsage } from '../../domain/integrity';
 import { CURRENCIES } from '../../domain/currencies';
+import { openingForCurrentBalance } from '../../domain/balance';
 import { accountBalanceMinor } from '../../domain/ledger';
-import { formatMoney, formatPlain, minorExponentOr } from '../../domain/money';
+import { formatMoney, formatPlain, minorExponentOr, parseMoney } from '../../domain/money';
 import { Card } from '../../ui/Card';
 import { userMessage } from '../../ui/errors';
 import { Field } from '../../ui/Field';
@@ -25,11 +26,12 @@ import {
   inputClass,
   secondaryButtonClass,
 } from '../../ui/styles';
+import { anchoredKey } from '../../import/undo';
 import { strings } from '../../ui/strings';
 
 function AccountForm({ account, onDone }: { account: Account | null; onDone: () => void }) {
   const { save } = useData();
-  const { accounts } = useReadyData();
+  const { accounts, transactions } = useReadyData();
   const [name, setName] = useState(account?.name ?? '');
   const [institution, setInstitution] = useState(account?.institution ?? '');
   const [type, setType] = useState<Account['type']>(account?.type ?? 'checking');
@@ -38,17 +40,37 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
     account ? formatPlain(account.opening_balance_minor, minorExponentOr(account.currency)) : '',
   );
   const [openingDate, setOpeningDate] = useState(account?.opening_date ?? todayIso());
+  const [currentBalance, setCurrentBalance] = useState('');
+  const [currentInvalid, setCurrentInvalid] = useState(false);
   const [issues, setIssues] = useState<AccountIssue[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
+    // "Saldo reale oggi": il saldo iniziale si ricalcola per far tornare il conto a quel valore.
+    let openingBalanceText = balance;
+    const realText = currentBalance.trim();
+    if (account && realText !== '') {
+      const real = parseMoney(realText, minorExponentOr(account.currency));
+      if (real === null) {
+        setCurrentInvalid(true);
+        return;
+      }
+      const own = transactions
+        .filter((tx) => tx.account_id === account.id)
+        .map((tx) => ({ amountMinor: tx.amount_minor }));
+      openingBalanceText = formatPlain(
+        openingForCurrentBalance(own, real),
+        minorExponentOr(account.currency),
+      );
+    }
+    setCurrentInvalid(false);
     const input: AccountInput = {
       name,
       institution,
       type,
       currency,
-      openingBalanceText: balance,
+      openingBalanceText,
       openingDate,
     };
     const result = account
@@ -62,7 +84,12 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
     setIssues([]);
     setBusy(true);
     try {
-      await save({ accounts: account ? { update: [result.value] } : { insert: [result.value] } });
+      const realized = account !== null && realText !== '';
+      await save({
+        accounts: account ? { update: [result.value] } : { insert: [result.value] },
+        // Un saldo riallineato a mano vale come "ricavato": i prossimi estratti lo confrontano.
+        ...(realized ? { meta: { [anchoredKey(account.id)]: '1' } } : {}),
+      });
       onDone();
     } catch (e) {
       setError(userMessage(e));
@@ -167,6 +194,28 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
           className={inputClass}
         />
       </Field>
+      {account && (
+        <Field
+          label={`${strings.accounts.currentBalance} (${currency})`}
+          htmlFor="account-current-balance"
+          hint={strings.accounts.currentBalanceHint}
+        >
+          <input
+            id="account-current-balance"
+            inputMode="decimal"
+            value={currentBalance}
+            aria-invalid={currentInvalid}
+            onChange={(e) => setCurrentBalance(e.target.value)}
+            className={`${inputClass} ${currentInvalid ? 'border-expense' : ''}`}
+            autoComplete="off"
+          />
+          {currentInvalid && (
+            <p className="mt-1 text-sm font-semibold text-expense">
+              {strings.accounts.currentBalanceInvalid}
+            </p>
+          )}
+        </Field>
+      )}
       <div className="flex flex-wrap gap-2">
         <button type="submit" disabled={busy} className={buttonClass}>
           {busy ? strings.common.saving : strings.common.save}

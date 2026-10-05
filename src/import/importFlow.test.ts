@@ -4,6 +4,7 @@ import { ScriptClient } from '../data/scriptClient';
 import { ScriptRepository } from '../data/scriptRepository';
 import { createScript, TEST_SECRET } from '../data/testing/fakeAppsScript';
 import { createAccount } from '../domain/accounts';
+import { openingForCurrentBalance } from '../domain/balance';
 import { buildDefaultCategories } from '../domain/defaultCategories';
 import { createTrade, quantityAt } from '../domain/investments';
 import { buildImport, buildPlan } from './plan';
@@ -119,6 +120,8 @@ async function importFile(
   text: string,
   filename: string,
   initialMinor: number | null = null,
+  /** false = come un import fatto senza saldo (versione precedente dell'app). */
+  useAnchor = true,
 ): Promise<{ data: Dataset; summary: ReturnType<typeof buildImport> }> {
   const data = await repo.load();
   const parsed = await processStatement(new TextEncoder().encode(text), parserId);
@@ -136,9 +139,10 @@ async function importFile(
     fileHash: parsed.fileHash,
     rows: planned.plan.rows,
     dataset: data,
-    declaredMinor: planned.plan.endBalanceMinor,
+    declaredMinor: useAnchor ? planned.plan.endBalanceMinor : null,
     initialMinor,
-    anchorDate: planned.plan.anchorDate,
+    anchorDate: useAnchor ? planned.plan.anchorDate : null,
+    statementStart: planned.plan.startDate,
   });
   if (built.ok) await repo.save(built.changes);
   return { data: await repo.load(), summary: built };
@@ -499,5 +503,74 @@ describe('Trade Republic: saldo iniziale scritto dall’utente', () => {
     const { data } = await undoLatest(repo);
     expect(data.accounts[0]?.opening_balance_minor).toBe(0);
     expect(data.transactions).toHaveLength(0);
+  });
+});
+
+describe('riallineare il saldo senza nuove righe', () => {
+  it('Revolut: rifare l’import dello stesso file corregge un saldo rimasto senza ancoraggio', async () => {
+    const { repo, accountId } = await setup();
+    // Come un import fatto senza saldo: il conto parte da 0 e risulta in negativo (−18,62 €)
+    const first = await importFile(repo, accountId, 'revolut', REVOLUT, 'rev.csv', null, false);
+    expect(balanceOf(first.data, accountId)).toBe(-1862);
+
+    // Stesso file: tutte righe già importate, ma il saldo letto dal file (612,79 €) lo riallinea
+    const again = await importFile(repo, accountId, 'revolut', REVOLUT, 'rev.csv');
+    expect(again.summary.ok).toBe(true);
+    expect(again.data.transactions).toHaveLength(2); // nessuna riga in più
+    expect(balanceOf(again.data, accountId)).toBe(61279);
+    // saldo iniziale = 612,79 + 9,31 + 9,31
+    expect(again.data.accounts[0]?.opening_balance_minor).toBe(63141);
+  });
+
+  it('Trade Republic: il saldo a inizio estratto vale anche su un file già importato', async () => {
+    const { repo, accountId } = await setup();
+    // Solo i movimenti: +21,13 −101,00 +41,00 = −38,87 € (saldo negativo: manca il saldo iniziale)
+    const first = await importFile(
+      repo,
+      accountId,
+      'trade_republic',
+      TRADE_REPUBLIC,
+      'tr.csv',
+      null,
+      false,
+    );
+    expect(balanceOf(first.data, accountId)).toBe(-3887);
+
+    // Reimporto lo stesso file dichiarando 1.000,00 € a inizio estratto → 961,13 €
+    const again = await importFile(
+      repo,
+      accountId,
+      'trade_republic',
+      TRADE_REPUBLIC,
+      'tr.csv',
+      100000,
+    );
+    expect(again.data.transactions).toHaveLength(3);
+    expect(balanceOf(again.data, accountId)).toBe(96113);
+    expect(again.data.accounts[0]?.opening_balance_minor).toBe(100000);
+  });
+
+  it('Revolut: file ordinato per data di inizio, saldo preso dall’ultimo completamento', async () => {
+    const { repo, accountId } = await setup();
+    // Saldo prima: 120,00 €. In ordine di completamento: −20,00 (13:00) → 100,00; −10,00 (14:00) → 90,00.
+    // Nel file la riga completata alle 14:00 viene PRIMA (è iniziata prima): l'ultima del file
+    // non è l'ultima per completamento.
+    const file = joinLines(
+      REVOLUT_HEADER,
+      'Pagamento con carta,Attuale,2026-09-29 23:00:00,2026-09-30 14:00:00,Negozio Uno,-10.00,0.00,EUR,COMPLETATO,90.00',
+      'Pagamento con carta,Attuale,2026-09-30 06:00:00,2026-09-30 13:00:00,Negozio Due,-20.00,0.00,EUR,COMPLETATO,100.00',
+    );
+    const { data } = await importFile(repo, accountId, 'revolut', file, 'ordine.csv');
+    expect(balanceOf(data, accountId)).toBe(9000);
+  });
+
+  it('un conto si riallinea al saldo reale: il saldo iniziale si ricalcola dai movimenti', async () => {
+    const { repo, accountId } = await setup();
+    const { data } = await importFile(repo, accountId, 'revolut', REVOLUT, 'rev.csv', null, false);
+    const own = data.transactions
+      .filter((t) => t.account_id === accountId)
+      .map((t) => ({ amountMinor: t.amount_minor }));
+    // movimenti −9,31 −9,31 = −18,62; saldo reale 250,00 → saldo iniziale 268,62
+    expect(openingForCurrentBalance(own, 25000)).toBe(26862);
   });
 });
