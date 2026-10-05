@@ -22,6 +22,7 @@ describe('contrasto (WCAG AA)', () => {
     'sfondo in alto': palette.bgTop,
     'sfondo al centro': palette.bgMid,
     'sfondo in basso': palette.bgBottom,
+    'barra laterale': palette.sidebar,
     riquadro: palette.surface,
     'campo/controllo': palette.surface2,
   };
@@ -48,10 +49,18 @@ describe('contrasto (WCAG AA)', () => {
     expect(contrast(palette.onAccent, palette.accentHover)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('i bordi dei campi e dei riquadri si distinguono dallo sfondo (≥ 3:1)', () => {
-    expect(contrast(palette.line, palette.surface)).toBeGreaterThanOrEqual(3);
-    expect(contrast(palette.line, palette.surface2)).toBeGreaterThanOrEqual(3);
-    expect(contrast(palette.line, palette.bgBottom)).toBeGreaterThanOrEqual(3);
+  it('i bordi di campi, pulsanti e interruttori si distinguono dallo sfondo (≥ 3:1)', () => {
+    expect(contrast(palette.control, palette.surface)).toBeGreaterThanOrEqual(3);
+    expect(contrast(palette.control, palette.surface2)).toBeGreaterThanOrEqual(3);
+    expect(contrast(palette.control, palette.bgBottom)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('i bordi sottili dei riquadri sono visibili ma discreti (tra 1,1:1 e 2:1)', () => {
+    for (const background of [palette.surface, palette.bgTop]) {
+      const ratio = contrast(palette.line, background);
+      expect(ratio).toBeGreaterThanOrEqual(1.1);
+      expect(ratio).toBeLessThanOrEqual(2);
+    }
   });
 
   it('i colori dei grafici si distinguono dal riquadro (≥ 3:1)', () => {

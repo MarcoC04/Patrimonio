@@ -52,7 +52,7 @@ export function MovementFilters({ filter, categories, onChange }: Props) {
         </Field>
       </div>
 
-      <details className="mb-3 rounded-lg border border-line bg-surface-2 px-3">
+      <details className="mb-3 rounded-lg border border-control bg-surface-2 px-3">
         <summary className="min-h-11 cursor-pointer py-2.5 text-sm font-medium">
           {strings.transactions.filters.categories}: {summary}
         </summary>

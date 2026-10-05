@@ -1,3 +1,4 @@
+import { PageHeader } from '../../ui/PageHeader';
 import { strings } from '../../ui/strings';
 import { AccountsCard } from '../accounts/AccountsCard';
 import { CategoriesCard } from '../categories/CategoriesCard';
@@ -10,7 +11,11 @@ import { PinCard } from './PinCard';
 export function SettingsPage() {
   return (
     <>
-      <h1 className="mb-4 text-2xl font-bold">{strings.pages.settings.title}</h1>
+      <PageHeader
+        icon="settings"
+        title={strings.pages.settings.title}
+        subtitle={strings.subtitles.settings}
+      />
       <ConnectionCard />
       <DataGate title={strings.accounts.title}>
         {() => (

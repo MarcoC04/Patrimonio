@@ -297,7 +297,7 @@ export function ImportFlow({ data, onDone }: Props) {
                 className={`flex min-h-11 cursor-pointer items-center justify-center rounded-lg border px-2 text-center text-sm font-medium ${
                   loaded.balanceMode === mode
                     ? 'border-accent bg-surface-2 text-accent underline decoration-2 underline-offset-4'
-                    : 'border-line bg-surface-2'
+                    : 'border-control bg-surface-2'
                 }`}
               >
                 <input

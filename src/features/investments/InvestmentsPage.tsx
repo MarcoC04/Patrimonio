@@ -13,6 +13,7 @@ import {
 } from '../../domain/investments';
 import { formatMoney } from '../../domain/money';
 import { Card, EmptyState } from '../../ui/Card';
+import { PageHeader } from '../../ui/PageHeader';
 import { userMessage } from '../../ui/errors';
 import { formatTenthsPercent, signedMoney } from '../../ui/format';
 import { alertClass, buttonClass, dangerButtonClass, secondaryButtonClass } from '../../ui/styles';
@@ -329,7 +330,7 @@ function InvestmentsView({ data }: { data: Dataset }) {
 export function InvestmentsPage() {
   return (
     <>
-      <h1 className="mb-4 text-2xl font-bold">{t.title}</h1>
+      <PageHeader icon="investments" title={t.title} subtitle={strings.subtitles.investments} />
       <DataGate title={t.title}>{(data) => <InvestmentsView data={data} />}</DataGate>
     </>
   );

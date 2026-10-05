@@ -9,6 +9,16 @@ export const strings = {
     budgets: 'Budget',
     investments: 'Investimenti',
     settings: 'Impostazioni',
+    sections: 'Sezioni',
+    newMovement: 'Nuovo movimento',
+  },
+
+  subtitles: {
+    dashboard: 'Il quadro dei tuoi conti e dei tuoi investimenti.',
+    transactions: 'Tutti i movimenti, con filtri per periodo, conto e categoria.',
+    budgets: 'Budget e obiettivi.',
+    investments: 'Asset, quantità, prezzi e rendimento.',
+    settings: 'Conti, categorie, sicurezza e dati.',
   },
 
   common: {

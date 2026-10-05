@@ -32,7 +32,7 @@ export function YearSelector({
             className={`min-h-11 min-w-20 shrink-0 rounded-xl border px-4 text-sm font-semibold ${
               active
                 ? 'border-accent bg-accent text-on-accent'
-                : 'border-line bg-surface-2 text-fg hover:bg-line-soft'
+                : 'border-control bg-surface-2 text-fg hover:bg-line-soft'
             }`}
           >
             {year}

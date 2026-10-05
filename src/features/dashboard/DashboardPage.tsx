@@ -15,6 +15,7 @@ import {
 import type { Portfolio } from '../../domain/investments';
 import { formatMoney } from '../../domain/money';
 import { Card, EmptyState } from '../../ui/Card';
+import { PageHeader } from '../../ui/PageHeader';
 import { strings } from '../../ui/strings';
 import { DataGate } from '../DataGate';
 import { categoryRows } from './categoryRows';
@@ -192,7 +193,11 @@ function DashboardView({ data }: { data: Dataset }) {
 export function DashboardPage() {
   return (
     <>
-      <h1 className="mb-4 text-2xl font-bold">{strings.dashboard.title}</h1>
+      <PageHeader
+        icon="dashboard"
+        title={strings.dashboard.title}
+        subtitle={strings.subtitles.dashboard}
+      />
       <DataGate title={strings.dashboard.title}>{(data) => <DashboardView data={data} />}</DataGate>
     </>
   );

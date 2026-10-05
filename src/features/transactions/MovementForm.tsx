@@ -169,7 +169,7 @@ export function MovementForm({ data, editing, onDone }: Props) {
               className={`flex min-h-11 cursor-pointer items-center justify-center rounded-lg border px-2 text-sm font-medium ${
                 kind === value
                   ? 'border-accent bg-surface-2 text-accent underline decoration-2 underline-offset-4'
-                  : 'border-line bg-surface-2'
+                  : 'border-control bg-surface-2'
               }`}
             >
               <input

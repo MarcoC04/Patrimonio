@@ -16,6 +16,16 @@ export function todayIso(now: Date = new Date()): string {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
+/** "Giovedì 18 giugno": la data di oggi per le intestazioni, in italiano. */
+export function todayLongIt(now: Date = new Date()): string {
+  const text = new Intl.DateTimeFormat('it-IT', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(now);
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 /** 2026-03-15 → "15/03/2026" (formato it-IT, senza passare da Date: nessuno scarto di fuso). */
 export function formatDateIt(iso: string): string {
   const [y, m, d] = iso.split('-');

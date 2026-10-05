@@ -6,22 +6,37 @@ interface CardProps {
   className?: string;
   /** Titolo centrato (riquadri dei grafici della dashboard); altrimenti a sinistra. */
   centered?: boolean;
+  /** Riga sotto il titolo, più piccola e in grigio. */
+  description?: string;
+  /** Elemento a destra del titolo (pulsanti del periodo, avvisi…). */
+  action?: ReactNode;
 }
 
-/** Riquadro con titolo e bordo verde, usato per i widget della dashboard e per le sezioni. */
-export function Card({ title, children, className = '', centered = false }: CardProps) {
+/** Riquadro con titolo, usato per i widget della dashboard e per le sezioni. */
+export function Card({
+  title,
+  children,
+  className = '',
+  centered = false,
+  description,
+  action,
+}: CardProps) {
   const headingId = useId();
   return (
-    <section
-      aria-labelledby={headingId}
-      className={`rounded-2xl border border-line bg-surface p-4 shadow-lg shadow-black/20 md:p-5 ${className}`}
-    >
-      <h2
-        id={headingId}
-        className={`mb-3 text-base font-semibold text-fg ${centered ? 'text-center' : ''}`}
+    <section aria-labelledby={headingId} className={`card p-4 md:p-5 ${className}`}>
+      <header
+        className={`mb-3 flex flex-wrap items-start gap-x-3 gap-y-2 ${
+          centered ? 'justify-center text-center' : 'justify-between'
+        }`}
       >
-        {title}
-      </h2>
+        <div className="min-w-0">
+          <h2 id={headingId} className="text-base font-semibold text-fg">
+            {title}
+          </h2>
+          {description && <p className="mt-0.5 text-xs text-muted">{description}</p>}
+        </div>
+        {action}
+      </header>
       {children}
     </section>
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateIt, isIsoDate, todayIso } from './dates';
+import { formatDateIt, isIsoDate, todayIso, todayLongIt } from './dates';
 
 describe('isIsoDate', () => {
   it.each([
@@ -33,5 +33,13 @@ describe('formatDateIt', () => {
   });
   it('un testo non ISO resta com’è', () => {
     expect(formatDateIt('boh')).toBe('boh');
+  });
+});
+
+describe('todayLongIt', () => {
+  it('giorno della settimana, giorno e mese in italiano, con l’iniziale maiuscola', () => {
+    // 18 giugno 2026 è un giovedì (il 1° gennaio 2026 è giovedì; 168 giorni dopo = 24 settimane esatte)
+    expect(todayLongIt(new Date(2026, 5, 18))).toBe('Giovedì 18 giugno');
+    expect(todayLongIt(new Date(2026, 9, 5))).toBe('Lunedì 5 ottobre');
   });
 });

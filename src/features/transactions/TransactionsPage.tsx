@@ -11,6 +11,7 @@ import {
 } from '../../domain/ledger';
 import { formatMoney } from '../../domain/money';
 import { Card, EmptyState } from '../../ui/Card';
+import { PageHeader } from '../../ui/PageHeader';
 import { userMessage } from '../../ui/errors';
 import { signedMoney } from '../../ui/format';
 import { alertClass, buttonClass, dangerButtonClass, secondaryButtonClass } from '../../ui/styles';
@@ -247,7 +248,11 @@ function TransactionsView({ data }: { data: Dataset }) {
 export function TransactionsPage() {
   return (
     <>
-      <h1 className="mb-4 text-2xl font-bold">{strings.transactions.title}</h1>
+      <PageHeader
+        icon="transactions"
+        title={strings.transactions.title}
+        subtitle={strings.subtitles.transactions}
+      />
       <DataGate title={strings.transactions.title}>
         {(data) => <TransactionsView data={data} />}
       </DataGate>

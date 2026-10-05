@@ -5,22 +5,24 @@
  * (theme.test.ts) controlla che coincidano e che il contrasto sia sufficiente.
  */
 @theme {
-  --color-bg-top: #0b2f35;
-  --color-bg-mid: #052026;
-  --color-bg-bottom: #031418;
-  --color-surface: #0a2429;
-  --color-surface-2: #0f353a;
-  --color-line: #2fa57a;
-  --color-line-soft: #1b5150;
-  --color-fg: #e8f6f2;
-  --color-muted: #9bbab5;
-  --color-accent: #2bd985;
-  --color-accent-hover: #52e8a0;
-  --color-on-accent: #03241a;
-  --color-income: #4ade80;
-  --color-expense: #ff8aa0;
+  --color-bg-top: #101425;
+  --color-bg-mid: #0f1220;
+  --color-bg-bottom: #0b0e18;
+  --color-sidebar: #12151f;
+  --color-surface: #161b27;
+  --color-surface-2: #1b2130;
+  --color-line: #262d42;
+  --color-line-soft: #1f2536;
+  --color-control: #6a75a3;
+  --color-fg: #ebf3ff;
+  --color-muted: #8f9ab4;
+  --color-accent: #6b7cff;
+  --color-accent-hover: #8392ff;
+  --color-on-accent: #0b1020;
+  --color-income: #44c68e;
+  --color-expense: #f46f82;
   --color-warn: #fbbf24;
-  --color-info: #38bdf8;
+  --color-info: #22b8d1;
 }
 
 @layer base {
@@ -34,11 +36,15 @@
     @apply text-fg;
     min-height: 100dvh;
     background: linear-gradient(
-      160deg,
+      170deg,
       var(--color-bg-top) 0%,
-      var(--color-bg-mid) 45%,
+      var(--color-bg-mid) 50%,
       var(--color-bg-bottom) 100%
     );
+    background-attachment: fixed;
+    /* Cifre di larghezza fissa: gli importi si allineano e non "ballano" aggiornandosi. */
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
   }
 
   :focus-visible {
@@ -57,5 +63,17 @@
   }
   input[type='date']::-webkit-date-and-time-value {
     text-align: left;
+  }
+}
+
+@layer components {
+  /* Riquadro: bordo sottile, leggero rilievo, come nel riferimento grafico. */
+  .card {
+    border-radius: 1.25rem;
+    border: 1px solid var(--color-line);
+    background-color: var(--color-surface);
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.03) inset,
+      0 12px 32px -16px rgb(0 0 0 / 0.6);
   }
 }
